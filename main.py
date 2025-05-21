@@ -3,10 +3,11 @@ from fastapi import FastAPI, HTTPException, Path, Body
 from bunq_lib import BunqOauthClient
 from urllib.parse import urlencode
 from db import get_user, save_token
-from model import BunqUser
 import secrets
 import requests
 import json
+from uuid import uuid4
+from signing import sign_data
 
 # ==========================
 # Configuration (Use env vars in production)
@@ -132,7 +133,7 @@ def get_payments(user_id: int, monetary_account_id: int):
     return response.json()
 
 # ==========================
-# Step 4: Create Request-Inquiry
+# Step 4: Create Payments
 # ==========================
 @app.post("/user/{user_id}/request-inquiry")
 def request_inquiry(
@@ -167,6 +168,66 @@ def request_inquiry(
 
     response = requests.post(
         f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{body.get('monetary_account_id')}/request-inquiry",
+        headers={
+            "User-Agent": "text",
+            "X-Bunq-Client-Authentication": session_token,
+            "Content-Type": "application/json"
+        },
+        data=json.dumps(payload)
+    )
+
+    return response.json()
+
+@app.post("/user/{user_id}/draft-payment")
+def create_draft_payment(
+    user_id: int,
+    body: dict = Body(
+        default={
+            "monetary_account_id": "2083712",
+            "status": "PENDING",
+            "amount": "10.00",
+            "currency": "EUR",
+            "description": "Dinner split",
+            "receiver_type": "EMAIL",
+            "receiver_value": "sugardaddy@bunq.com",
+            "receiver_name": "Best Friend",
+            "previous_updated_timestamp": "2024-05-01 12:00:00.000",
+            "number_of_required_accepts": 1,
+            "schedule": {
+                "time_start": "2025-05-22 14:00:00.000",
+                "time_end": "2025-05-22 16:00:00.000",
+                "recurrence_unit": "DAILY",
+                "recurrence_size": 1
+            }
+        }
+    )
+):
+    session_token, end_user_id = extract_session_info(user_id)
+
+    payload = {
+        "status": body.get("status", "PENDING"),
+        "number_of_required_accepts": body.get("number_of_required_accepts", 1),
+        "entries": [
+            {
+                "amount": {
+                    "value": body.get("amount", "0.00"),
+                    "currency": body.get("currency", "EUR")
+                },
+                "counterparty_alias": {
+                    "type": body.get("receiver_type", "EMAIL"),
+                    "value": body.get("receiver_value", ""),
+                    "name": body.get("receiver_name", "")
+                },
+                "description": body.get("description", ""),
+                "attachment": [{"id": id_} for id_ in body.get("attachment_ids", [])] if "attachment_ids" in body else []
+            }
+        ],
+        "previous_updated_timestamp": body.get("previous_updated_timestamp"),
+        "schedule": body.get("schedule", {})
+    }
+
+    response = requests.post(
+        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{body.get('monetary_account_id')}/draft-payment",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,

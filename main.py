@@ -6,8 +6,6 @@ from db import get_user, save_token
 import secrets
 import requests
 import json
-from uuid import uuid4
-from signing import sign_data
 
 # ==========================
 # Configuration (Use env vars in production)
@@ -29,9 +27,16 @@ bunq_client.create_session()
 # ==========================
 # Initial Setup (Run once)
 # ==========================
+# 1. Uncomment just this line Run this one and ctrl-c stop the server
 # bunq_client.create_installation()
+# 2. Uncomment just this line Run this one and ctrl-c stop the server
 # bunq_client.create_device_server()
+# 3. Uncomment just this line Run this one and ctrl-c stop the server
 # oauth_client_id = bunq_client.create_oauth_client(endpoint="oauth-client", method="POST")
+# 4. Uncomment just this line Run this one and ctrl-c stop the server
+# - Grab the OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET that should now be printed to your console and fill them in
+# At the top of this file under constants
+# Grab the ID of the client and add it to client_id in the next line and run it
 # bunq_client.add_oauth_callback_url(client_id="6905", callback_url=REDIRECT_URI)
 
 # ==========================

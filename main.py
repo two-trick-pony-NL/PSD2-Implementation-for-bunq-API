@@ -21,6 +21,7 @@ OAUTH_CLIENT_SECRET = "efa1998bb019dce234c3c44dee790e82c6561877e597798b1e8543edb
 # Initialize bunq SDK & FastAPI
 # ==========================
 bunq_client = BunqOauthClient(USER_API_KEY, service_name='PSD2 Example Script')
+
 app = FastAPI()
 bunq_client.create_session()
 

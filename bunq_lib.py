@@ -35,6 +35,10 @@ class BunqOauthClient:
             print("bunq - No device token found, need to create a new one.")
 
     def create_installation(self):
+        """
+        https://doc.bunq.com/tutorials/your-first-payment/creating-the-api-context0oµ∆≤≥ydtr
+        :return:
+        """
         if self.device_token is not None:
             print("bunq - Device token already created.")
             return
@@ -108,113 +112,13 @@ class BunqOauthClient:
 
         response = requests.post(url, headers=headers, data=payload_json)
         data = response.json()
-        #print(data)
+        #`print(data)
         # Extract and save session token
         self.session_token = next(item["Token"]["token"] for item in data["Response"] if "Token" in item)
         self.user_id = next(item["UserPaymentServiceProvider"]["id"] for item in data["Response"] if "UserPaymentServiceProvider" in item)
 
         print(f"bunq - Session Token: {self.session_token}")
         print(f"bunq - User ID (UserPaymentServiceProvider): {self.user_id}")
-
-    def request(self, endpoint: str, method: str = "GET", data: dict = None):
-        url = f"{self.base_url}/user/{self.user_id}/{endpoint}"
-        print(f"[DEBUG] bunq - Requesting: {method} {url}")
-
-        # Default headers
-        headers = {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
-            'User-Agent': self.service_name,
-            'X-Bunq-Language': 'en_US',
-            'X-Bunq-Region': 'nl_NL',
-            'X-Bunq-Geolocation': '0 0 0 0 000',
-            'X-Bunq-Client-Authentication': self.session_token,
-            'X-Bunq-Client-Request-Id': str(uuid.uuid4())  # Should be unique for each request
-        }
-
-        payload = None
-
-        if data and method == "POST":
-            # Ensure consistent JSON formatting by using separators
-            payload = json.dumps(data, separators=(',', ':'))
-            signed_payload_signature = sign_data(payload, self.private_key_pem)
-            headers["X-Bunq-Client-Signature"] = signed_payload_signature
-
-            print(f"[DEBUG] Request Payload: {payload}")
-            print(f"[DEBUG] Signed Payload Signature: {signed_payload_signature}")
-
-        try:
-            response = requests.request(method, url, headers=headers, data=payload)
-            print(f"[DEBUG] Response Status Code: {response.status_code}")
-
-            if response.status_code == 401:
-                print("[WARNING] Unauthorized (401) - Refreshing session...")
-                self.refresh_session()
-                response = requests.request(method, url, headers=headers, data=payload)
-                print(f"[DEBUG] Retried Response Status Code: {response.status_code}")
-
-            if response.status_code == 200:
-                response_body = response.text
-                server_signature = response.headers.get('X-Bunq-Server-Signature')
-
-                if server_signature and self.server_public_key:
-                    # Verify the response signature
-                    if not verify_response(response_body, server_signature, self.server_public_key):
-                        raise Exception("Response signature verification failed")
-                    print("[DEBUG] Response signature verified successfully")
-
-                return response.json()
-
-            print(f"[ERROR] Request failed: {response.status_code} - {response.text}")
-            response.raise_for_status()
-
-        except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Request error: {e}")
-            raise
-
-    def create_payment(self, amount: str, recipient_iban: str, currency: str, from_monetary_account_id: str,
-                       description: str):
-        url = f"{self.base_url}/user/{self.user_id}/monetary-account/{from_monetary_account_id}/payment"
-
-        payload = json.dumps({
-            "amount": {
-                "value": str(amount),
-                "currency": str(currency)
-            },
-            "counterparty_alias": {
-                "type": "EMAIL",
-                "value": "sugardaddy@bunq.com",
-                "name": "Sugar Daddy"
-            },
-            "description": str(description)
-        }, separators=(',', ':'))  # Ensure consistent JSON formatting
-
-        signature = sign_data(payload, self.private_key_pem)
-        headers = {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
-            'User-Agent': self.service_name,
-            'X-Bunq-Language': 'en_US',
-            'X-Bunq-Region': 'nl_NL',
-            'X-Bunq-Client-Request-Id': str(uuid.uuid4()),
-            'X-Bunq-Geolocation': '0 0 0 0 000',
-            'X-Bunq-Client-Authentication': self.session_token,
-            'X-Bunq-Client-Signature': signature
-        }
-
-        response = requests.post(url, headers=headers, data=payload)
-
-        if response.status_code == 200:
-            response_body = response.text
-            server_signature = response.headers.get('X-Bunq-Server-Signature')
-
-            if server_signature and self.server_public_key:
-                # Verify the response signature
-                if not verify_response(response_body, server_signature, self.server_public_key):
-                    raise Exception("Response signature verification failed")
-                print("[DEBUG] Response signature verified successfully")
-
-        return response.json()
 
     def create_oauth_client(self, endpoint: str, method: str = "POST"):
         url = f"{self.base_url}/user/{self.user_id}/{endpoint}"
@@ -372,7 +276,6 @@ class BunqOauthClient:
         }
 
         response = requests.post(url, headers=headers, data=payload_json)
-        data = response.json()
-        return (data)
+        return response.json()
 
 

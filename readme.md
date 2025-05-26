@@ -80,6 +80,9 @@ This allows it to load the .env file that was just created
 - You'll be redirected to your callback URL. You may have to change `https` to `http` if you run on localhost
 - You should see something like `{"message":"OAuth success","new_user_id":6}` this means that the database now contains a user with id `6` that has a valid access token associated with it that grants the app access to bunq
 
+  <img width="721" alt="Screenshot 2025-05-26 at 12 59 26 PM" src="https://github.com/user-attachments/assets/cfea9651-f5e7-4286-9cc8-36282913a18b" />
+
+
 9. **Get access to a users information** 
 - Simply go to `localhost:8000/docs` this is a swagger interface for the fastapi server we just buit. 
 - You could now go to your `localhost:8000/users/6` endpoint to see the user profile of that user. In the background this happens:
@@ -99,4 +102,8 @@ response = requests.get(
 Which returns the details of that user.
 
 10. **Advanced calls**
-Other API calls work the same way. Fetch user token, get a session make a call. However you can also create payments and requests. See the `/docs/` page to see what is possible and also to see what parameters are required. 
+Other API calls work the same way. Fetch user token, get a session make a call. However you can also create payments and requests. See the `/docs/` page to see what is possible and also to see what parameters are required.
+
+<img width="1365" alt="Screenshot 2025-05-26 at 12 58 52 PM" src="https://github.com/user-attachments/assets/ce19155f-9faf-4655-a0db-e21aa388d966" />
+
+

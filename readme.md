@@ -3,6 +3,8 @@
 ## Intro
 This repository provides an example implementation of the PSD2 protocol using the bunq API. By running this code, you can gain access to bunq users’ accounts—granted when they authorize access by scanning a QR code.
 
+## Security and certificates
+> 💡 Note: You may need formal certification to access user payment data. This code is only a basic example showing how to request OAuth credentials and use them. It is not production-ready.
 
 ## What is PSD2 What can I do with it?
 PSD2 (Payment Services Directive 2) is a European regulation aimed at making payments safer, boosting innovation, and increasing competition in financial services. It requires banks to open up their payment infrastructure and customer data (with consent) to third-party providers via secure APIs.

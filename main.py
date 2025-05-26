@@ -10,6 +10,7 @@ from db import get_user, save_token, init_db
 import os
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 
@@ -20,7 +21,7 @@ load_dotenv()
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "f16f69fcb4f040888638ef2b8a4464be76ccc919240bde0cb7b2fe390ab65282"
+YOUR_API_KEY = "afb9aad0fa14e8af731ca5d274e03ed95aef0b0850976e072647d6fc7c979680"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -34,6 +35,8 @@ USER_API_KEY = os.getenv("USER_API_KEY", YOUR_API_KEY)
 # Initialize bunq client & FastAPI
 # ==========================
 bunq_client = BunqOauthClient(USER_API_KEY, service_name='PSD2 Example Script')
+bunq_client.create_session()
+
 app = FastAPI()
 
 @app.on_event("startup")
@@ -41,13 +44,11 @@ def startup():
     # Create tables if they don't exist
     init_db()
 
-# Leave this one - creates the session
-bunq_client.create_session()
 
 # ==========================
 # Initial Setup Endpoint (Run once)
 # ==========================
-@app.get("/setup_one_time")
+@app.get("/setup_one_time", response_class=HTMLResponse, include_in_schema=False)
 def setup_one_time():
     print("\n🚀 Setting up Bunq OAuth")
 

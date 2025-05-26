@@ -1,0 +1,4 @@
+.env
+device_token.json
+private_key.pem
+public_key.pem

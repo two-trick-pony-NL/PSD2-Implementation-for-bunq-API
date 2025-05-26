@@ -1,44 +1,107 @@
-from fastapi.responses import RedirectResponse
-from fastapi import FastAPI, HTTPException, Path, Body
-from bunq_lib import BunqOauthClient
-from urllib.parse import urlencode
-from db import get_user, save_token
+import time
 import secrets
-import requests
 import json
+import requests
+from urllib.parse import urlencode
+from fastapi import FastAPI, HTTPException, Path, Body
+from fastapi.responses import RedirectResponse, HTMLResponse
+from bunq_lib import BunqOauthClient
+from db import get_user, save_token, init_db
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # ==========================
 # Configuration (Use env vars in production)
 # ==========================
+
+"""
+Fill this in for your PSD2 installation and delete this after set up
+"""
+YOUR_API_KEY = "f16f69fcb4f040888638ef2b8a4464be76ccc919240bde0cb7b2fe390ab65282"
+
+
 REDIRECT_URI = "https://localhost:8000/callback"
 BUNQ_AUTH_URL = "https://oauth.sandbox.bunq.com/auth"
 BUNQ_TOKEN_URL = "https://api-oauth.sandbox.bunq.com/v1/token"
-USER_API_KEY = "86213913a016abae42cf2ed3c5e3bdb5713fddad800cf9c7fc6b970cc9a539aa"
-OAUTH_CLIENT_ID = "ee15db39814f1ff5c4cf4b7ac36b6e9650aec63572f8b2c5807978a89ccf1b1a"
-OAUTH_CLIENT_SECRET = "efa1998bb019dce234c3c44dee790e82c6561877e597798b1e8543edb830cea8"
+OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID", None)
+OAUTH_CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET", None)
+USER_API_KEY = os.getenv("USER_API_KEY", YOUR_API_KEY)
 
 # ==========================
-# Initialize bunq SDK & FastAPI
+# Initialize bunq client & FastAPI
 # ==========================
 bunq_client = BunqOauthClient(USER_API_KEY, service_name='PSD2 Example Script')
-
 app = FastAPI()
+
+@app.on_event("startup")
+def startup():
+    # Create tables if they don't exist
+    init_db()
+
+# Leave this one - creates the session
 bunq_client.create_session()
 
 # ==========================
-# Initial Setup (Run once)
+# Initial Setup Endpoint (Run once)
 # ==========================
-# 1. Uncomment just this line Run this one and ctrl-c stop the server
-# bunq_client.create_installation()
-# 2. Uncomment just this line Run this one and ctrl-c stop the server
-# bunq_client.create_device_server()
-# 3. Uncomment just this line Run this one and ctrl-c stop the server
-# oauth_client_id = bunq_client.create_oauth_client(endpoint="oauth-client", method="POST")
-# 4. Uncomment just this line Run this one and ctrl-c stop the server
-# - Grab the OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET that should now be printed to your console and fill them in
-# At the top of this file under constants
-# Grab the ID of the client and add it to client_id in the next line and run it
-# bunq_client.add_oauth_callback_url(client_id="6905", callback_url=REDIRECT_URI)
+@app.get("/setup_one_time")
+def setup_one_time():
+    print("\n🚀 Setting up Bunq OAuth")
+
+    print("→ Step 0: Setting up mock database")
+    init_db()
+
+    print("→ Step 1: Creating Installation")
+    bunq_client.create_installation()
+    time.sleep(3)
+
+    print("→ Step 2: Creating Device Server")
+    bunq_client.create_device_server()
+    time.sleep(3)
+
+    print("→ Step 3: Creating Session")
+    bunq_client.create_session()
+    time.sleep(3)
+
+    print("→ Step 4: Creating OAuth Client")
+    oauth_client_id, oauth_secret, oauth_database_id = bunq_client.create_oauth_client(endpoint="oauth-client", method="POST")
+    time.sleep(3)
+
+    print("→ Step 5: Registering Callback URL")
+    bunq_client.add_oauth_callback_url(client_id=oauth_database_id, callback_url=REDIRECT_URI)
+    time.sleep(3)
+    print("→ Step 6: Adding Credentials to .env file")
+
+    filepath = ".env"
+    values = {
+        "OAUTH_CLIENT_ID": oauth_client_id,
+        "OAUTH_CLIENT_SECRET": oauth_secret,
+        "USER_API_KEY": YOUR_API_KEY,
+    }
+
+    with open(filepath, "w") as f:
+        for key, value in values.items():
+            f.write(f"{key}={value}\n")
+
+    print(f"[INFO] .env file created at {filepath}")
+
+    html_content = f"""
+        <html>
+            <body>
+                <h2>✅ Done -- bunq Oauth Client set up</h2>
+                <p>Set <code>OAUTH_CLIENT_ID='{oauth_client_id}'</code> and <code>OAUTH_CLIENT_SECRET='{oauth_secret}'</code> in your config.</p>
+                <ul>
+                    <li>Restart the FastAPI server</li>
+                    <li>Remove the setup code</li>
+                    <li>Remove the API key (It's been transferred to a <code>.env</code> file)</li>
+                </ul>
+            </body>
+        </html>
+        """
+    return HTMLResponse(content=html_content)
 
 # ==========================
 # In-memory state for CSRF protection (Use Redis/db in prod)
@@ -47,7 +110,6 @@ state_store = {}
 
 # ==========================
 # Step 1: OAuth Authorization
-# Redirects user to bunq consent screen
 # ==========================
 @app.get("/auth")
 def authorize():
@@ -65,7 +127,6 @@ def authorize():
 
 # ==========================
 # Step 2: OAuth Callback
-# Exchanges code for token & saves user
 # ==========================
 @app.get("/callback")
 async def callback(code: str = None, state: str = None):
@@ -90,7 +151,7 @@ async def callback(code: str = None, state: str = None):
     return {"message": "OAuth success", "new_user_id": user.id}
 
 # ==========================
-# Helper to extract bunq session info from user's token
+# Helper: Extract session info from token
 # ==========================
 def extract_session_info(user_id: int):
     user = get_user(user_id)
@@ -98,6 +159,21 @@ def extract_session_info(user_id: int):
     session_token = oauth_user["Response"][1]["Token"]["token"]
     end_user_id = oauth_user["Response"][2]["UserApiKey"]["granted_by_user"]["UserPerson"]["id"]
     return session_token, end_user_id
+
+# ==========================
+# Step 3: Get User Info
+# ==========================
+@app.get("/user/{user_id}/")
+def get_user_info(user_id: int):
+    session_token, end_user_id = extract_session_info(user_id)
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user-person/{end_user_id}",
+        headers={
+            "User-Agent": "text",
+            "X-Bunq-Client-Authentication": session_token,
+            "Accept": "*/*"},
+    )
+    return response.json()
 
 # ==========================
 # Step 3: Get Monetary Account Info

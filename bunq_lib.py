@@ -63,8 +63,12 @@ class BunqOauthClient:
         self.save_device_token()  # Save the token for future use
 
     def create_device_server(self):
+        if self.device_server_id is not None:
+            print("bunq - Device server already created.")
+            return
         if not self.device_token:
             print("bunq - Device token is required to create device server.")
+
             return
 
         url = f"{self.base_url}/device-server"
@@ -85,13 +89,14 @@ class BunqOauthClient:
             'X-Bunq-Client-Authentication': self.device_token,
             'X-Bunq-Client-Signature': signed_payload_signature
         }
-
         response = requests.post(url, headers=headers, data=payload)
         self.device_server_id = response.text
 
     def create_session(self):
         if not self.device_token:
             print("bunq - Device token is required to create session.")
+            print("\n\nGo to http://localhost:8000/setup_one_time to initiate setup\n\n")
+
             return
 
         url = f"{self.base_url}/session-server"
@@ -112,7 +117,7 @@ class BunqOauthClient:
 
         response = requests.post(url, headers=headers, data=payload_json)
         data = response.json()
-        #`print(data)
+        print(data)
         # Extract and save session token
         self.session_token = next(item["Token"]["token"] for item in data["Response"] if "Token" in item)
         self.user_id = next(item["UserPaymentServiceProvider"]["id"] for item in data["Response"] if "UserPaymentServiceProvider" in item)
@@ -124,7 +129,6 @@ class BunqOauthClient:
         url = f"{self.base_url}/user/{self.user_id}/{endpoint}"
         print(f"[DEBUG] bunq - Requesting: {method} {url}")
 
-        # Default headers
         headers = {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
@@ -133,55 +137,61 @@ class BunqOauthClient:
             'X-Bunq-Region': 'nl_NL',
             'X-Bunq-Geolocation': '0 0 0 0 000',
             'X-Bunq-Client-Authentication': self.session_token,
-            'X-Bunq-Client-Request-Id': str(uuid.uuid4())  # Should be unique for each request
+            'X-Bunq-Client-Request-Id': str(uuid.uuid4())
         }
 
-        data = []
+        payload = json.dumps([], separators=(',', ':'))
+        headers["X-Bunq-Client-Signature"] = sign_data(payload, self.private_key_pem)
 
-        # Ensure consistent JSON formatting by using separators
-        payload = json.dumps(data, separators=(',', ':'))
-        signed_payload_signature = sign_data(payload, self.private_key_pem)
-        headers["X-Bunq-Client-Signature"] = signed_payload_signature
+        def do_request(method, url):
+            return requests.request(method, url, headers=headers, data=payload if method == "POST" else None)
 
+        response = do_request(method, url)
+        print(f"[DEBUG] Initial response status: {response.status_code}")
+
+        if response.status_code == 401:
+            print("[WARNING] Unauthorized (401) - refreshing session and retrying")
+            self.refresh_session()
+            headers['X-Bunq-Client-Authentication'] = self.session_token
+            headers['X-Bunq-Client-Request-Id'] = str(uuid.uuid4())
+            headers["X-Bunq-Client-Signature"] = sign_data(payload, self.private_key_pem)
+            response = do_request(method, url)
+            print(f"[DEBUG] Retried response status: {response.status_code}")
+
+        if response.status_code not in [200, 201]:
+            print(f"[WARNING] {response.status_code} - {response.text}")
+            raise Exception(f"Failed to create OAuth client")
+
+        response_body = response.text
+        server_signature = response.headers.get('X-Bunq-Server-Signature')
+
+        if server_signature and self.server_public_key:
+            if not verify_response(response_body, server_signature, self.server_public_key):
+                raise Exception("Response signature verification failed")
+            print("[DEBUG] Response signature verified")
 
         try:
-            response = requests.request(method, url, headers=headers, data=payload)
-            print(f"[DEBUG] Creating Oauth Client Status Code: {response.status_code}")
+            data = response.json()
+            if "OauthClient" in data['Response'][0]:
+                oauth = data['Response'][0]['OauthClient']
+            else:
+                # fallback GET
+                response = do_request("GET", url)
+                data = response.json()
+                oauth = data['Response'][0]['OauthClient']
 
-            if response.status_code == 401:
-                print("[WARNING] Unauthorized (401) - Refreshing session...")
-                self.refresh_session()
-                response = requests.request(method, url, headers=headers, data=payload)
-                print(f"[DEBUG] Retried Response Status Code: {response.status_code}")
+            client_id = oauth['client_id']
+            secret = oauth['secret']
+            database_id = oauth['id']
 
-            if response.status_code == 200:
-                response_body = response.text
-                server_signature = response.headers.get('X-Bunq-Server-Signature')
+            print(f"[DEBUG] OAuth Client ID: {client_id}")
+            print(f"[DEBUG] OAuth Secret: {secret}")
+            print(f"[DEBUG] OAuth DB ID: {database_id}")
+            return client_id, secret, database_id
 
-                if server_signature and self.server_public_key:
-                    # Verify the response signature
-                    if not verify_response(response_body, server_signature, self.server_public_key):
-                        raise Exception("Response signature verification failed")
-                    print("[DEBUG] Response signature verified successfully")
-
-                data = json.loads(response.text)
-                id_value = data['Response'][0]['Id']['id']
-                return id_value
-
-            print(f"[Warning] {response.status_code} - {response.text}")
-            url = f"{self.base_url}/user/{self.user_id}/{endpoint}"
-            response = requests.request("GET", url, headers=headers)
-            data = json.loads(response.text)
-            print("Oauth client data :\n\n", data, "\n\n")
-            oauth_id = data['Response'][0]['OauthClient']['client_id']
-            secret = data['Response'][0]['OauthClient']['secret']
-            print(f"[DEBUG] Oauth Client ID: {oauth_id}")
-            print(f"[DEBUG] Oauth Client Secret: {secret}")
-            return oauth_id
-
-        except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Request error: {e}")
-            raise
+        except Exception as e:
+            print(f"[ERROR] Failed to extract OAuth client info: {e}")
+            return None, None, None
 
     def get_oauth_client(self, client_id: str):
         url = f"{self.base_url}/user/{self.user_id}/oauth-client/{client_id}"

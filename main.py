@@ -21,7 +21,7 @@ load_dotenv()
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "afb9aad0fa14e8af731ca5d274e03ed95aef0b0850976e072647d6fc7c979680"
+YOUR_API_KEY = "df1eba19bbf7d59e23c5fc920de37613963025105ec42bc8f7dda465b4069adb"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -157,6 +157,7 @@ async def callback(code: str = None, state: str = None):
 def extract_session_info(user_id: int):
     user = get_user(user_id)
     oauth_user = bunq_client.get_end_user_oauth_details(user.access_token)
+    print(oauth_user)
     session_token = oauth_user["Response"][1]["Token"]["token"]
     end_user_id = oauth_user["Response"][2]["UserApiKey"]["granted_by_user"]["UserPerson"]["id"]
     return session_token, end_user_id

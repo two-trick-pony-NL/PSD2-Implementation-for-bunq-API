@@ -120,10 +120,15 @@ class BunqOauthClient:
         print(data)
         # Extract and save session token
         self.session_token = next(item["Token"]["token"] for item in data["Response"] if "Token" in item)
-        self.user_id = next(item["UserPaymentServiceProvider"]["id"] for item in data["Response"] if "UserPaymentServiceProvider" in item)
-
+        user_keys = ["UserPaymentServiceProvider", "UserPerson", "UserCompany"]
+        self.user_id = next(
+            item[key]["id"]
+            for item in data["Response"]
+            for key in user_keys
+            if key in item
+        )
         print(f"bunq - Session Token: {self.session_token}")
-        print(f"bunq - User ID (UserPaymentServiceProvider): {self.user_id}")
+        print(f"bunq - User ID: {self.user_id}")
 
     def create_oauth_client(self, endpoint: str, method: str = "POST"):
         url = f"{self.base_url}/user/{self.user_id}/{endpoint}"
@@ -286,6 +291,7 @@ class BunqOauthClient:
         }
 
         response = requests.post(url, headers=headers, data=payload_json)
+        print(response.json())
         return response.json()
 
 

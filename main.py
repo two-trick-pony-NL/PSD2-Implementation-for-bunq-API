@@ -158,16 +158,19 @@ def extract_session_info(user_id: int):
     user = get_user(user_id)
     oauth_user = bunq_client.get_end_user_oauth_details(user.access_token)
     print(oauth_user)
+    print(f"Extracted OAuth user: {oauth_user}")
     session_token = oauth_user["Response"][1]["Token"]["token"]
     end_user_id = oauth_user["Response"][2]["UserApiKey"]["granted_by_user"]["UserPerson"]["id"]
-    return session_token, end_user_id
+    user_api_id = oauth_user["Response"][2]["UserApiKey"]["id"]
+    full_response = oauth_user["Response"]
+    return session_token, end_user_id, user_api_id, full_response
 
 # ==========================
 # Step 3: Get User Info
 # ==========================
 @app.get("/user/{user_id}/")
 def get_user_info(user_id: int):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_id, full_response = extract_session_info(user_id)
     response = requests.get(
         f"https://public-api.sandbox.bunq.com/v1/user-person/{end_user_id}",
         headers={
@@ -175,14 +178,17 @@ def get_user_info(user_id: int):
             "X-Bunq-Client-Authentication": session_token,
             "Accept": "*/*"},
     )
-    return response.json()
+    return {
+        "response_id": response.headers["x-bunq-client-response-id"],
+        "body": response.json()
+    }
 
 # ==========================
 # Step 3: Get Monetary Account Info
 # ==========================
 @app.get("/user/{user_id}/")
 def get_user_info(user_id: int):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_id, full_response = extract_session_info(user_id)
     response = requests.get(
         f"https://public-api.sandbox.bunq.com/v1/user-person/{end_user_id}",
         headers={
@@ -190,31 +196,40 @@ def get_user_info(user_id: int):
             "X-Bunq-Client-Authentication": session_token,
             "Accept": "*/*"},
     )
-    return response.json()
+    return {
+        "response_id": response.headers["x-bunq-client-response-id"],
+        "body": response.json()
+    }
 
 @app.get("/user/{user_id}/accounts")
 def get_accounts(user_id: int):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_id, full_response = extract_session_info(user_id)
     response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account-bank",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_id}/monetary-account-bank",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
             "Content-Type": "application/json"},
     )
-    return response.json()
+    return {
+        "response_id": response.headers["x-bunq-client-response-id"],
+        "body": response.json()
+    }
 
 @app.get("/user/{user_id}/payments/{monetary_account_id}")
 def get_payments(user_id: int, monetary_account_id: int):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_id, full_response = extract_session_info(user_id)
     response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{monetary_account_id}/payment",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_id}/monetary-account/{monetary_account_id}/payment",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
             "Accept": "*/*"},
     )
-    return response.json()
+    return {
+        "response_id": response.headers["x-bunq-client-response-id"],
+        "body": response.json()
+    }
 
 # ==========================
 # Step 4: Create Payments
@@ -234,7 +249,7 @@ def request_inquiry(
         }
     )
 ):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_id, full_response = extract_session_info(user_id)
 
     payload = {
         "amount_inquired": {
@@ -251,7 +266,7 @@ def request_inquiry(
     }
 
     response = requests.post(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{body.get('monetary_account_id')}/request-inquiry",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_id}/monetary-account/{body.get('monetary_account_id')}/request-inquiry",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
@@ -260,7 +275,10 @@ def request_inquiry(
         data=json.dumps(payload)
     )
 
-    return response.json()
+    return {
+        "response_id": response.headers["x-bunq-client-response-id"],
+        "body": response.json()
+    }
 
 @app.post("/user/{user_id}/draft-payment")
 def create_draft_payment(
@@ -286,7 +304,7 @@ def create_draft_payment(
         }
     )
 ):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_id, full_response = extract_session_info(user_id)
 
     payload = {
         "status": body.get("status", "PENDING"),
@@ -311,7 +329,7 @@ def create_draft_payment(
     }
 
     response = requests.post(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{body.get('monetary_account_id')}/draft-payment",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_id}/monetary-account/{body.get('monetary_account_id')}/draft-payment",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
@@ -320,4 +338,7 @@ def create_draft_payment(
         data=json.dumps(payload)
     )
 
-    return response.json()
+    return {
+        "response_id": response.headers["x-bunq-client-response-id"],
+        "body": response.json()
+    }

@@ -196,7 +196,7 @@ def get_user_info(user_id: int):
 def get_accounts(user_id: int):
     session_token, end_user_id = extract_session_info(user_id)
     response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account-bank",
+        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,

@@ -3,12 +3,13 @@ import secrets
 import json
 import requests
 from urllib.parse import urlencode
-from fastapi import FastAPI, HTTPException, Path, Body
+from fastapi import FastAPI, HTTPException, Path, Body, Header
 from fastapi.responses import RedirectResponse, HTMLResponse
 from bunq_lib import BunqOauthClient
 from db import get_user, save_token, init_db
 import os
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 
 load_dotenv()
@@ -21,7 +22,7 @@ load_dotenv()
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "df1eba19bbf7d59e23c5fc920de37613963025105ec42bc8f7dda465b4069adb"
+YOUR_API_KEY = "27497a7d1a27bb3311097cbcefff73456e5ec66e0044fdd682e45473bb6e1873"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -319,5 +320,73 @@ def create_draft_payment(
         },
         data=json.dumps(payload)
     )
+
+    return response.json()
+
+@app.post("/psd2/payment-service-provider-issuer-transaction")
+def create_payment_service_provider_issuer_transaction(
+    body: dict = Body(
+        default={
+            "counterparty_alias": {
+                "type": "IBAN",
+                "value": "NL52BUNQ2090374640",
+            },
+            "amount": {
+                "value": "10.00",
+                "currency": "EUR"
+            },
+            "description": "Payment description",
+            "url_redirect": "https://yourapp.com/redirect",
+            "time_expiry": (datetime.utcnow() + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "status": "PENDING"
+        }
+    ),
+):
+
+    payload = {
+        "counterparty_alias": body.get("counterparty_alias"),
+        "amount": body.get("amount"),
+        "description": body.get("description"),
+        "url_redirect": body.get("url_redirect"),
+        "time_expiry": body.get("time_expiry"),
+        "status": body.get("status")
+    }
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token), #Session token from PSD2 user
+        "Content-Type": "application/json",
+        "Accept": "*/*"
+    }
+
+    response = requests.post(
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/payment-service-provider-issuer-transaction", #PSD2 user ID 
+        headers=headers,
+        data=json.dumps(payload)
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
+    return response.json()
+
+
+@app.get("/psd2/payment-service-provider-issuer-transaction/{transaction_id}")
+def get_payment_service_provider_issuer_transaction(transaction_id: int):
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "Content-Type": "application/json",
+        "Accept": "*/*"
+    }
+
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/payment-service-provider-issuer-transaction/{transaction_id}",
+        headers=headers
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
 
     return response.json()

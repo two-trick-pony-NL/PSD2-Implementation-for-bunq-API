@@ -22,7 +22,7 @@ load_dotenv()
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "27497a7d1a27bb3311097cbcefff73456e5ec66e0044fdd682e45473bb6e1873"
+YOUR_API_KEY = "55093d8983d901c4a0ecf7a71937b21d4c70a94c43982961d429b5726bd8937c"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -371,6 +371,10 @@ def create_payment_service_provider_issuer_transaction(
     return response.json()
 
 
+# ==========================
+# Step 5: PSD2 Payment issuer Payments
+# ==========================
+
 @app.get("/psd2/payment-service-provider-issuer-transaction/{transaction_id}")
 def get_payment_service_provider_issuer_transaction(transaction_id: int):
 
@@ -384,6 +388,205 @@ def get_payment_service_provider_issuer_transaction(transaction_id: int):
     response = requests.get(
         f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/payment-service-provider-issuer-transaction/{transaction_id}",
         headers=headers
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
+    return response.json()
+
+
+@app.get("/psd2/payment-service-provider-issuer-transaction-public/{public_id}")
+def get_payment_service_provider_issuer_transaction(public_id: str):
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "Content-Type": "application/json",
+        "Accept": "*/*"
+    }
+
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/payment-service-provider-issuer-transaction-public/{public_id}",
+        headers=headers
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
+    return response.json()
+
+
+# ==========================
+# Step 6: Update Whitelist  IP addresses
+# ==========================
+
+@app.get("/credential-password-ip")
+def list_credential_password_ips():
+    headers = {
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "Accept": "application/json",
+    }
+
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/credential-password-ip",
+        headers=headers
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
+    return response.json()
+
+@app.get("/credential-password-ip/{ip_id}")
+def get_credential_password_ip(ip_id: int):
+    headers = {
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "Accept": "application/json",
+    }
+
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/credential-password-ip/{ip_id}",
+        headers=headers
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
+    return response.json()
+
+
+import uuid
+
+@app.get("/credential-password-ip/{credential_password_ip_id}")
+def get_credential(credential_password_ip_id: int):
+    headers = {
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "Accept": "application/json",
+    }
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/credential-password-ip/{credential_password_ip_id}",
+        headers=headers
+    )
+    return response.json()
+
+@app.get("/credential-password-ip/{credential_password_ip_id}/ip")
+def list_ips_for_credential(credential_password_ip_id: int):
+    headers = {
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "Accept": "application/json",
+    }
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/credential-password-ip/{credential_password_ip_id}/ip",
+        headers=headers
+    )
+    return response.json()
+
+@app.get("/credential-password-ip/{credential_password_ip_id}/ip/{item_id}")
+def get_ip_for_credential(credential_password_ip_id: int, item_id: int):
+    headers = {
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "Accept": "application/json",
+    }
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/credential-password-ip/{credential_password_ip_id}/ip/{item_id}",
+        headers=headers
+    )
+    return response.json()
+
+
+
+@app.post("/credential-password-ip/{credential_password_ip_id}/ip")
+def add_ip_for_credential(credential_password_ip_id: int, body: dict = Body(
+    default={
+        "ip": "*",
+        "status": "ACTIVE"
+    }
+)):
+    """
+    Add a new IP to the list of allowed IPs for a credential-password-ip object.
+
+    Example default body:
+    {
+        "ip": "*",
+        "status": "ACTIVE"
+    }
+    """
+    payload = {
+        "ip": body.get("ip", "*"),
+        "status": body.get("status", "ACTIVE")
+    }
+
+    headers = {
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "X-Bunq-Language": "en_US",
+        "X-Bunq-Region": "nl_NL",
+        "X-Bunq-Geolocation": "0 0 0 0 NL",
+        "X-Bunq-Client-Request-Id": str(uuid.uuid4()),
+        "User-Agent": "bunq-api-client/1.0",
+        "Cache-Control": "no-cache",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    url = (
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/"
+        f"credential-password-ip/{credential_password_ip_id}/ip"
+    )
+
+    response = requests.post(
+        url,
+        headers=headers,
+        data=json.dumps(payload)
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
+    return response.json()
+
+
+
+@app.put("/credential-password-ip/{credential_password_ip_id}/ip/{item_id}")
+def update_ip_status_for_credential(credential_password_ip_id: int, item_id: int, body: dict = Body(
+    default={
+        "status": "INACTIVE"
+    }
+)):
+    """
+    Update the status of an existing IP entry for a credential-password-ip.
+    Only "status" is allowed here.
+
+    Example default body:
+    {
+        "status": "INACTIVE"
+    }
+    """
+    payload = {
+        "status": body.get("status", "INACTIVE"),
+    }
+
+    headers = {
+        "X-Bunq-Client-Authentication": str(bunq_client.session_token),
+        "X-Bunq-Language": "en_US",
+        "X-Bunq-Region": "nl_NL",
+        "X-Bunq-Geolocation": "0 0 0 0 NL",
+        "X-Bunq-Client-Request-Id": str(uuid.uuid4()),
+        "User-Agent": "bunq-api-client/1.0",
+        "Cache-Control": "no-cache",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    url = (
+        f"https://public-api.sandbox.bunq.com/v1/user/{bunq_client.user_id}/"
+        f"credential-password-ip/{credential_password_ip_id}/ip/{item_id}"
+    )
+
+    response = requests.put(
+        url,
+        headers=headers,
+        data=json.dumps(payload)
     )
 
     if response.status_code != 200:

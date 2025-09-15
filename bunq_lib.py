@@ -75,7 +75,7 @@ class BunqOauthClient:
         payload = json.dumps({
             "description": self.service_name,
             "secret": self.api_key,
-            "permitted_ips": ["*"]
+            "permitted_ips": ['*']
         })
         signed_payload_signature = sign_data(payload, self.private_key_pem)
 

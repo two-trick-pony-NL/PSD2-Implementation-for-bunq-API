@@ -22,7 +22,7 @@ load_dotenv()
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "55093d8983d901c4a0ecf7a71937b21d4c70a94c43982961d429b5726bd8937c"
+YOUR_API_KEY = "42d70cb5bd319856299f603f7d88d4d93f516fddff0ec0cefc4ffb1dbd57ee48"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -330,6 +330,7 @@ def create_payment_service_provider_issuer_transaction(
             "counterparty_alias": {
                 "type": "IBAN",
                 "value": "NL52BUNQ2090374640",
+                "name": "peter van doorn"
             },
             "amount": {
                 "value": "10.00",

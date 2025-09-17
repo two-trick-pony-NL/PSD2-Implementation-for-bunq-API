@@ -2,6 +2,95 @@ import json
 import requests
 from signing import generate_rsa_key_pair, sign_data, verify_response
 import uuid
+from datetime import datetime, timedelta
+
+
+def format_expiration(created_str, timeout_seconds):
+    """Return expiration datetime string based on creation time + timeout."""
+    if not created_str or not timeout_seconds:
+        return "N/A"
+    created_dt = datetime.fromisoformat(created_str)
+    expiration_dt = created_dt + timedelta(seconds=timeout_seconds)
+    return expiration_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+def format_duration(seconds):
+    """Convert seconds to HH:MM:SS format."""
+    return str(timedelta(seconds=seconds)) if seconds else "N/A"
+
+def print_bunq_response_session_data(data):
+    resp = {item_key: item[item_key] for item in data["Response"] for item_key in item}
+
+    print("\n" + "="*60)
+    print("bunq Session Info".center(60))
+    print("="*60)
+
+    # Token info
+    token = resp.get("Token", {})
+    print(f"{'Session Token:':30} {token.get('token')}")
+    print(f"{'Token Created:':30} {token.get('created')}")
+    print(f"{'Token Updated:':30} {token.get('updated')}")
+
+    # User info (supports multiple types)
+    user = resp.get("UserPaymentServiceProvider") or resp.get("UserPerson") or resp.get("UserCompany") or {}
+    if user:
+        print("\nUser Info".center(60))
+        print("-"*60)
+        print(f"{'User ID:':30} {user.get('id')}")
+        print(f"{'Display Name:':30} {user.get('display_name')}")
+        print(f"{'Public UUID:':30} {user.get('public_uuid')}")
+        print(f"{'Status:':30} {user.get('status')}")
+        print(f"{'Sub-status:':30} {user.get('sub_status')}")
+        daily_limit = user.get('daily_limit_without_confirmation_login', {})
+        if daily_limit:
+            print(f"{'Daily Limit:':30} {daily_limit.get('value')} {daily_limit.get('currency')}")
+    
+    print("="*60 + "\n")
+    
+def print_user_api_key_response(data):
+    # Flatten response items
+    resp_dict = {list(item.keys())[0]: list(item.values())[0] for item in data['Response']}
+
+    token = resp_dict.get('Token', {})
+    api_key = resp_dict.get('UserApiKey', {})
+    requested_user = api_key.get('requested_by_user', {}).get('UserPaymentServiceProvider', {})
+    granted_user = api_key.get('granted_by_user', {}).get('UserPerson', {})
+
+    print("\n" + "="*70)
+    print("Oauth Token Used in API call".center(70))
+    print("="*70)
+
+    # Token info
+    print(f"{'End User Session Token:':30} {token.get('token')}")
+    print(f"{'Token Created:':30} {token.get('created')}")
+    print(f"{'Token Updated:':30} {token.get('updated')}")
+
+    # API Key info
+    print("\nUserApiKey Info".center(70))
+    print("-"*70)
+    print(f"{'API Key ID:':30} {api_key.get('id')}")
+    print(f"{'Created:':30} {api_key.get('created')}")
+    print(f"{'Updated:':30} {api_key.get('updated')}")
+
+    # Helper to print user info
+    def print_user(title, user, created_str):
+        if not user:
+            return
+        print(f"\n{title}".center(70))
+        print("-"*70)
+        print(f"{'User ID:':30} {user.get('id')}")
+        print(f"{'Display Name:':30} {user.get('display_name')}")
+        print(f"{'Public Nickname:':30} {user.get('public_nick_name')}")
+        avatar = user.get('avatar', {})
+        if avatar.get('image'):
+            print(f"{'Avatar URL:':30} {avatar['image'][0]['urls'][0]['url']}")
+        timeout = user.get('session_timeout')
+        print(f"{'Session Expires At:':30} {format_expiration(created_str, timeout)}")
+        print(f"{'Session Duration:':30} {format_duration(timeout)}")
+
+    print_user("Requested By (Payment Service Provider)", requested_user, api_key.get('created'))
+    print_user("Granted By (The End-user)", granted_user, api_key.get('created'))
+
+    print("="*70 + "\n")
 
 
 class BunqOauthClient:
@@ -23,7 +112,7 @@ class BunqOauthClient:
         """Save the device token to a file."""
         with open('device_token.json', 'w') as file:
             json.dump({"device_token": self.device_token}, file)
-
+            
     def load_device_token(self):
         """Load the device token from a file if it exists."""
         try:
@@ -117,7 +206,7 @@ class BunqOauthClient:
 
         response = requests.post(url, headers=headers, data=payload_json)
         data = response.json()
-        print(data)
+        #print(data)
         # Extract and save session token
         self.session_token = next(item["Token"]["token"] for item in data["Response"] if "Token" in item)
         user_keys = ["UserPaymentServiceProvider", "UserPerson", "UserCompany"]
@@ -127,8 +216,7 @@ class BunqOauthClient:
             for key in user_keys
             if key in item
         )
-        print(f"bunq - Session Token: {self.session_token}")
-        print(f"bunq - User ID: {self.user_id}")
+        print_bunq_response_session_data(data)
 
     def create_oauth_client(self, endpoint: str, method: str = "POST"):
         url = f"{self.base_url}/user/{self.user_id}/{endpoint}"
@@ -291,7 +379,7 @@ class BunqOauthClient:
         }
 
         response = requests.post(url, headers=headers, data=payload_json)
-        #print(response.json())
+        print_user_api_key_response(response.json())
         return response.json()
 
 

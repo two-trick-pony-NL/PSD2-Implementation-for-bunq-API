@@ -22,7 +22,7 @@ load_dotenv()
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "42d70cb5bd319856299f603f7d88d4d93f516fddff0ec0cefc4ffb1dbd57ee48"
+YOUR_API_KEY = "ed30bd09ed22def9f75d6169ef903ca5a66a34c6671322db8be5ae5da907e6a0"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -113,7 +113,7 @@ state_store = {}
 # ==========================
 # Step 1: OAuth Authorization
 # ==========================
-@app.get("/auth")
+@app.get("/auth", tags=["oauth"])
 def authorize():
     state = secrets.token_urlsafe(16)
     state_store[state] = True
@@ -130,7 +130,7 @@ def authorize():
 # ==========================
 # Step 2: OAuth Callback
 # ==========================
-@app.get("/callback")
+@app.get("/callback", tags=["oauth"])
 async def callback(code: str = None, state: str = None):
     if not code or not state or state not in state_store:
         raise HTTPException(status_code=400, detail="Invalid or missing code/state")
@@ -166,7 +166,7 @@ def extract_session_info(user_id: int):
 # ==========================
 # Step 3: Get User Info
 # ==========================
-@app.get("/user/{user_id}/")
+@app.get("/user/{user_id}/", tags=["Userprofile"])
 def get_user_info(user_id: int):
     session_token, end_user_id = extract_session_info(user_id)
     response = requests.get(
@@ -181,19 +181,7 @@ def get_user_info(user_id: int):
 # ==========================
 # Step 3: Get Monetary Account Info
 # ==========================
-@app.get("/user/{user_id}/")
-def get_user_info(user_id: int):
-    session_token, end_user_id = extract_session_info(user_id)
-    response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user-person/{end_user_id}",
-        headers={
-            "User-Agent": "text",
-            "X-Bunq-Client-Authentication": session_token,
-            "Accept": "*/*"},
-    )
-    return response.json()
-
-@app.get("/user/{user_id}/accounts")
+@app.get("/user/{user_id}/accounts", tags=["Monetary Accounts"])
 def get_accounts(user_id: int):
     session_token, end_user_id = extract_session_info(user_id)
     response = requests.get(
@@ -205,7 +193,7 @@ def get_accounts(user_id: int):
     )
     return response.json()
 
-@app.get("/user/{user_id}/payments/{monetary_account_id}")
+@app.get("/user/{user_id}/payments/{monetary_account_id}", tags=["Payments"])
 def get_payments(user_id: int, monetary_account_id: int):
     session_token, end_user_id = extract_session_info(user_id)
     response = requests.get(
@@ -220,7 +208,7 @@ def get_payments(user_id: int, monetary_account_id: int):
 # ==========================
 # Step 4: Create Payments
 # ==========================
-@app.post("/user/{user_id}/request-inquiry")
+@app.post("/user/{user_id}/request-inquiry", tags=["Requests"])
 def request_inquiry(
     user_id: int,
     body: dict = Body(
@@ -263,7 +251,7 @@ def request_inquiry(
 
     return response.json()
 
-@app.post("/user/{user_id}/draft-payment")
+@app.post("/user/{user_id}/draft-payment", tags=["Payments"])
 def create_draft_payment(
     user_id: int,
     body: dict = Body(
@@ -323,7 +311,7 @@ def create_draft_payment(
 
     return response.json()
 
-@app.post("/psd2/payment-service-provider-issuer-transaction")
+@app.post("/psd2/payment-service-provider-issuer-transaction", tags=["PSD2 User"])
 def create_payment_service_provider_issuer_transaction(
     body: dict = Body(
         default={
@@ -376,7 +364,7 @@ def create_payment_service_provider_issuer_transaction(
 # Step 5: PSD2 Payment issuer Payments
 # ==========================
 
-@app.get("/psd2/payment-service-provider-issuer-transaction/{transaction_id}")
+@app.get("/psd2/payment-service-provider-issuer-transaction/{transaction_id}", tags=["PSD2 User"])
 def get_payment_service_provider_issuer_transaction(transaction_id: int):
 
     headers = {
@@ -397,7 +385,7 @@ def get_payment_service_provider_issuer_transaction(transaction_id: int):
     return response.json()
 
 
-@app.get("/psd2/payment-service-provider-issuer-transaction-public/{public_id}")
+@app.get("/psd2/payment-service-provider-issuer-transaction-public/{public_id}", tags=["PSD2 User"])
 def get_payment_service_provider_issuer_transaction(public_id: str):
 
     headers = {
@@ -422,7 +410,7 @@ def get_payment_service_provider_issuer_transaction(public_id: str):
 # Step 6: Update Whitelist  IP addresses
 # ==========================
 
-@app.get("/credential-password-ip")
+@app.get("/credential-password-ip", tags=["IP Whitelist"])
 def list_credential_password_ips():
     headers = {
         "X-Bunq-Client-Authentication": str(bunq_client.session_token),
@@ -439,7 +427,7 @@ def list_credential_password_ips():
 
     return response.json()
 
-@app.get("/credential-password-ip/{ip_id}")
+@app.get("/credential-password-ip/{ip_id}", tags=["IP Whitelist"])
 def get_credential_password_ip(ip_id: int):
     headers = {
         "X-Bunq-Client-Authentication": str(bunq_client.session_token),
@@ -459,7 +447,7 @@ def get_credential_password_ip(ip_id: int):
 
 import uuid
 
-@app.get("/credential-password-ip/{credential_password_ip_id}")
+@app.get("/credential-password-ip/{credential_password_ip_id}", tags=["IP Whitelist"])
 def get_credential(credential_password_ip_id: int):
     headers = {
         "X-Bunq-Client-Authentication": str(bunq_client.session_token),
@@ -471,7 +459,7 @@ def get_credential(credential_password_ip_id: int):
     )
     return response.json()
 
-@app.get("/credential-password-ip/{credential_password_ip_id}/ip")
+@app.get("/credential-password-ip/{credential_password_ip_id}/ip", tags=["IP Whitelist"])
 def list_ips_for_credential(credential_password_ip_id: int):
     headers = {
         "X-Bunq-Client-Authentication": str(bunq_client.session_token),
@@ -483,7 +471,7 @@ def list_ips_for_credential(credential_password_ip_id: int):
     )
     return response.json()
 
-@app.get("/credential-password-ip/{credential_password_ip_id}/ip/{item_id}")
+@app.get("/credential-password-ip/{credential_password_ip_id}/ip/{item_id}", tags=["IP Whitelist"])
 def get_ip_for_credential(credential_password_ip_id: int, item_id: int):
     headers = {
         "X-Bunq-Client-Authentication": str(bunq_client.session_token),
@@ -497,7 +485,7 @@ def get_ip_for_credential(credential_password_ip_id: int, item_id: int):
 
 
 
-@app.post("/credential-password-ip/{credential_password_ip_id}/ip")
+@app.post("/credential-password-ip/{credential_password_ip_id}/ip", tags=["IP Whitelist"])
 def add_ip_for_credential(credential_password_ip_id: int, body: dict = Body(
     default={
         "ip": "*",
@@ -548,7 +536,7 @@ def add_ip_for_credential(credential_password_ip_id: int, body: dict = Body(
 
 
 
-@app.put("/credential-password-ip/{credential_password_ip_id}/ip/{item_id}")
+@app.put("/credential-password-ip/{credential_password_ip_id}/ip/{item_id}", tags=["IP Whitelist"])
 def update_ip_status_for_credential(credential_password_ip_id: int, item_id: int, body: dict = Body(
     default={
         "status": "INACTIVE"
@@ -590,6 +578,93 @@ def update_ip_status_for_credential(credential_password_ip_id: int, item_id: int
         data=json.dumps(payload)
     )
 
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
+    return response.json()
+
+# ---- GET notification filters ----
+@app.get("/user/{user_id}/notification-filter-url", tags=["Notification Filters"])
+def get_notification_filters(user_id: int):
+    """
+    Retrieve all URL notification filters for a user.
+    """
+    session_token, end_user_id = extract_session_info(user_id)
+    headers = {
+        "X-Bunq-Client-Authentication": session_token,
+        "X-Bunq-Language": "en_US",
+        "X-Bunq-Region": "nl_NL",
+        "X-Bunq-Geolocation": "0 0 0 0 NL",
+        "X-Bunq-Client-Request-Id": str(uuid.uuid4()),
+        "User-Agent": "bunq-api-client/1.0",
+        "Cache-Control": "no-cache",
+        "Accept": "application/json",
+    }
+
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-url"
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+    return response.json()
+
+
+# ---- POST / set notification filters ----
+@app.post("/user/{user_id}/notification-filter-url", tags=["Notification Filters"])
+def set_notification_filter(
+    user_id: int,
+    body: dict = Body(
+        default={
+            "notification_filters": [
+                {"category": "BILLING", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "CARD_TRANSACTION_SUCCESSFUL", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "CARD_TRANSACTION_FAILED", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "CHAT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "DRAFT_PAYMENT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "IDEAL", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SOFORT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "MUTATION", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "OAUTH", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "PAYMENT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "REQUEST", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SCHEDULE_RESULT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SCHEDULE_STATUS", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SHARE", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "TAB_RESULT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "BUNQME_TAB", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SUPPORT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"}
+            ]
+        }
+    )
+):
+    """
+    Manage the URL notification filters for a user.
+
+    Example default body:
+    {
+        "notification_filters": [
+            {
+                "category": "CARD_TRANSACTIONSUCCESSFUL",
+                "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"
+            }
+        ]
+    }
+    """
+    session_token, end_user_id = extract_session_info(user_id)
+    headers = {
+        "X-Bunq-Client-Authentication": session_token,
+        "X-Bunq-Language": "en_US",
+        "X-Bunq-Region": "nl_NL",
+        "X-Bunq-Geolocation": "0 0 0 0 NL",
+        "X-Bunq-Client-Request-Id": str(uuid.uuid4()),
+        "User-Agent": "bunq-api-client/1.0",
+        "Cache-Control": "no-cache",
+        "Accept": "application/json",
+    }
+
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-url"
+
+    response = requests.post(url, headers=headers, data=json.dumps(body))
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.json())
 

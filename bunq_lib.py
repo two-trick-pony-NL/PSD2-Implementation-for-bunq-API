@@ -291,7 +291,7 @@ class BunqOauthClient:
         }
 
         response = requests.post(url, headers=headers, data=payload_json)
-        print(response.json())
+        #print(response.json())
         return response.json()
 
 

@@ -10,6 +10,7 @@ from db import get_user, save_token, init_db
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import logging
 
 
 load_dotenv()
@@ -158,7 +159,7 @@ async def callback(code: str = None, state: str = None):
 def extract_session_info(user_id: int):
     user = get_user(user_id)
     oauth_user = bunq_client.get_end_user_oauth_details(user.access_token)
-    print(oauth_user)
+    #print(oauth_user)
     session_token = oauth_user["Response"][1]["Token"]["token"]
     end_user_id = oauth_user["Response"][2]["UserApiKey"]["granted_by_user"]["UserPerson"]["id"]
     return session_token, end_user_id
@@ -668,4 +669,29 @@ def set_notification_filter(
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.json())
 
+    return response.json()
+
+# ---- GET notification filters ----
+@app.get("/user/{user_id}/notification-filter-failure", tags=["Notification Filters"])
+def get_notification_filters(user_id: int):
+    """
+    Retrieve all URL notification failures for a user.
+    """
+    session_token, end_user_id = extract_session_info(user_id)
+    headers = {
+        "X-Bunq-Client-Authentication": session_token,
+        "X-Bunq-Language": "en_US",
+        "X-Bunq-Region": "nl_NL",
+        "X-Bunq-Geolocation": "0 0 0 0 NL",
+        "X-Bunq-Client-Request-Id": str(uuid.uuid4()),
+        "User-Agent": "bunq-api-client/1.0",
+        "Cache-Control": "no-cache",
+        "Accept": "application/json",
+    }
+
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-failure"
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
     return response.json()

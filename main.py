@@ -692,6 +692,64 @@ def get_notification_filters(user_id: int):
     url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-failure"
 
     response = requests.get(url, headers=headers)
+    print(response.headers)
+
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.json())
+    return response.json()
+
+
+@app.put("/user/{user_id}/notification-filter-url", tags=["Notification Filters"])
+def set_notification_filter(
+    user_id: int,
+    body: dict = Body(
+        default={
+            "notification_filters": [
+                {"category": "BILLING", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "CARD_TRANSACTION_SUCCESSFUL", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "CARD_TRANSACTION_FAILED", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "CHAT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "DRAFT_PAYMENT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "IDEAL", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SOFORT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "MUTATION", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "OAUTH", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "PAYMENT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "REQUEST", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SCHEDULE_RESULT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SCHEDULE_STATUS", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SHARE", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "TAB_RESULT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "BUNQME_TAB", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"},
+                {"category": "SUPPORT", "notification_target": "https://webhook.site/994966bb-7a4c-4be3-836a-da65231b907d"}
+            ]
+        }
+    )
+):
+    """
+    Manage the URL notification filters for a user.
+
+    Example default body:
+    {
+        "notification_filters": []
+    }
+    """
+    session_token, end_user_id = extract_session_info(user_id)
+    headers = {
+        "X-Bunq-Client-Authentication": session_token,
+        "X-Bunq-Language": "en_US",
+        "X-Bunq-Region": "nl_NL",
+        "X-Bunq-Geolocation": "0 0 0 0 NL",
+        "X-Bunq-Client-Request-Id": str(uuid.uuid4()),
+        "User-Agent": "bunq-api-client/1.0",
+        "Cache-Control": "no-cache",
+        "Accept": "application/json",
+    }
+
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-url"
+
+    response = requests.put(url, headers=headers, data=json.dumps(body))
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+
     return response.json()

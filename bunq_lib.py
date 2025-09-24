@@ -49,7 +49,6 @@ def print_bunq_response_session_data(data):
 def print_user_api_key_response(data):
     # Flatten response items
     resp_dict = {list(item.keys())[0]: list(item.values())[0] for item in data['Response']}
-    print(resp_dict)
 
     token = resp_dict.get('Token', {})
     api_key = resp_dict.get('UserApiKey', {})

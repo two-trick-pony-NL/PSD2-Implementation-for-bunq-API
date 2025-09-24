@@ -26,9 +26,9 @@ def log_request(self, method, url, *args, **kwargs):
 
     banner = "=" * 70
     print(f"\n{banner}")
-    print(f"{method.upper()} API Call")
+    print(f"{method.upper()} request to:")
+    print(f"{url}")
     print(f"{banner}")
-    print(f"URL:                          {url}")
 
     # Request Headers
     headers = kwargs.get('headers') or {}
@@ -37,11 +37,6 @@ def log_request(self, method, url, *args, **kwargs):
         for k, v in headers.items():
             print(f"  {k:30}: {v}")
 
-    # Payload / JSON
-    data = kwargs.get('data') or kwargs.get('json')
-    if data:
-        print(f"Payload/Data:                 {data}")
-
     # Response details
     print(f"Response Status Code:         {response.status_code}")
 
@@ -49,8 +44,26 @@ def log_request(self, method, url, *args, **kwargs):
     response_id = response.headers.get('x-bunq-client-response-id', 'N/A')
     print(f"Bunq Response ID:             {response_id}")
 
-    print(banner)
+    # Payload / JSON
+    data = kwargs.get('data') or kwargs.get('json')
+    if data:
+        print(f"Payload/Data:                 {data}")
+
+    # If not successful, dump response body
+    if not (200 <= response.status_code < 300):
+        error_banner = "-" * 70
+        print(f"\n{error_banner}")
+        print("Response Body:")
+        try:
+            print(response.json())
+        except Exception:
+            print(response.text)
+        print(f"{error_banner}")
+            
+    spacing = "\n" * 10 
+    print(spacing)
     return response
+
 
 # Patch the Session.request method globally
 requests.Session.request = log_request
@@ -660,7 +673,7 @@ def get_notification_filters(user_id: int):
         "Accept": "application/json",
     }
 
-    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-url"
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/notification-filter-url"
 
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
@@ -721,7 +734,7 @@ def set_notification_filter(
         "Accept": "application/json",
     }
 
-    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-url"
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/notification-filter-url"
 
     response = requests.post(url, headers=headers, data=json.dumps(body))
     if response.status_code != 200:
@@ -747,7 +760,7 @@ def get_notification_filters(user_id: int):
         "Accept": "application/json",
     }
 
-    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-failure"
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/notification-filter-failure"
 
     response = requests.get(url, headers=headers)
     print(response.headers)
@@ -804,7 +817,7 @@ def set_notification_filter(
         "Accept": "application/json",
     }
 
-    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/notification-filter-url"
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/notification-filter-url"
 
     response = requests.put(url, headers=headers, data=json.dumps(body))
     if response.status_code != 200:
@@ -812,70 +825,3 @@ def set_notification_filter(
 
     return response.json()
 
-
-# GET all payment batches for a monetary account
-@app.get("/user/{user_id}/monetary-account/{monetary_account_id}/payment-batch", tags=["Batch Payments"])
-def get_payment_batches(user_id: int, monetary_account_id: int):
-    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
-    response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment-batch",
-        headers={
-            "User-Agent": "bunq-api-client/1.0",
-            "X-Bunq-Client-Authentication": session_token,
-            "Cache-Control": "no-cache",
-            "Accept": "application/json"
-        }
-    )
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.json())
-    return response.json()
-
-# POST create a payment batch
-@app.post("/user/{user_id}/monetary-account/{monetary_account_id}/payment-batch", tags=["Batch Payments"])
-def create_payment_batch(user_id: int, monetary_account_id: int, body: dict = Body(
-    example={
-        "payments": [
-            {
-                "amount": {"value": "10.00", "currency": "EUR"},
-                "description": "Invoice #1",
-                "counterparty_alias": {"type": "IBAN", "value": "NL52BUNQ2090374640", "name": "Alice"}
-            }
-        ]
-    }
-)):
-    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
-    client_request_id = str(uuid.uuid4())
-    response = requests.post(
-        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment-batch",
-        headers={
-            "User-Agent": "bunq-api-client/1.0",
-            "X-Bunq-Client-Authentication": session_token,
-            "X-Bunq-Client-Request-Id": client_request_id,
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json"
-        },
-        data=json.dumps(body)
-    )
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.json())
-    return response.json()
-
-# PUT revoke a payment batch (set to REVOKED)
-@app.put("/user/{user_id}/monetary-account/{monetary_account_id}/payment-batch/{item_id}", tags=["Batch Payments"])
-def revoke_payment_batch(user_id: int, monetary_account_id: int, item_id: int, body: dict = Body(...)):
-    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
-    client_request_id = str(uuid.uuid4())
-    response = requests.put(
-        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment-batch/{item_id}",
-        headers={
-            "User-Agent": "bunq-api-client/1.0",
-            "X-Bunq-Client-Authentication": session_token,
-            "X-Bunq-Client-Request-Id": client_request_id,
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json"
-        },
-        data=json.dumps(body)
-    )
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.json())
-    return response.json()

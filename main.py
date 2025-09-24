@@ -17,13 +17,53 @@ load_dotenv()
 
 
 # ==========================
+# Configuration so the requests library logs all requests (for debugging)
+# ==========================
+_orig_request = requests.Session.request
+
+def log_request(self, method, url, *args, **kwargs):
+    response = _orig_request(self, method, url, *args, **kwargs)
+
+    banner = "=" * 70
+    print(f"\n{banner}")
+    print(f"{method.upper()} API Call")
+    print(f"{banner}")
+    print(f"URL:                          {url}")
+
+    # Request Headers
+    headers = kwargs.get('headers') or {}
+    if headers:
+        print("Request Headers:")
+        for k, v in headers.items():
+            print(f"  {k:30}: {v}")
+
+    # Payload / JSON
+    data = kwargs.get('data') or kwargs.get('json')
+    if data:
+        print(f"Payload/Data:                 {data}")
+
+    # Response details
+    print(f"Response Status Code:         {response.status_code}")
+
+    # Bunq Response ID
+    response_id = response.headers.get('x-bunq-client-response-id', 'N/A')
+    print(f"Bunq Response ID:             {response_id}")
+
+    print(banner)
+    return response
+
+# Patch the Session.request method globally
+requests.Session.request = log_request
+
+
+# ==========================
 # Configuration (Use env vars in production)
 # ==========================
 
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "ed30bd09ed22def9f75d6169ef903ca5a66a34c6671322db8be5ae5da907e6a0"
+YOUR_API_KEY = "7caf098cb7214cab25184fe13f19e485a12cf10b8eb2adbecf75d250e490e822"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -39,7 +79,18 @@ USER_API_KEY = os.getenv("USER_API_KEY", YOUR_API_KEY)
 bunq_client = BunqOauthClient(USER_API_KEY, service_name='PSD2 Example Script')
 bunq_client.create_session()
 
-app = FastAPI()
+app = FastAPI(
+    title="bunq API Example",
+    description="""
+Welcome to the **bunq API Example** This implementation is aimed at demonstrating how to use bunq's OAuth2 flow and interact with their API using FastAPI. 
+Refer to the readme.md to see how to get the setup working. Each of these endpoints allows you to interact with bunq's API in the role of PSD2 user on behalf of a bunq user after completing the OAuth2 authorization process.
+
+refer to https://doc.bunq.com for all API documentation
+
+""",
+    version="1.0.0"
+)
+
 
 @app.on_event("startup")
 def startup():
@@ -50,6 +101,12 @@ def startup():
 # ==========================
 # Initial Setup Endpoint (Run once)
 # ==========================
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def read_root():
+    return RedirectResponse(url="/docs")
+
+
 @app.get("/setup_one_time", response_class=HTMLResponse, include_in_schema=False)
 def setup_one_time():
     print("\n🚀 Setting up Bunq OAuth")
@@ -162,16 +219,17 @@ def extract_session_info(user_id: int):
     #print(oauth_user)
     session_token = oauth_user["Response"][1]["Token"]["token"]
     end_user_id = oauth_user["Response"][2]["UserApiKey"]["granted_by_user"]["UserPerson"]["id"]
-    return session_token, end_user_id
+    user_api_key = oauth_user["Response"][2]["UserApiKey"]["id"]
+    return session_token, end_user_id, user_api_key
 
 # ==========================
 # Step 3: Get User Info
 # ==========================
 @app.get("/user/{user_id}/", tags=["Userprofile"])
 def get_user_info(user_id: int):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user-person/{end_user_id}",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
@@ -184,9 +242,9 @@ def get_user_info(user_id: int):
 # ==========================
 @app.get("/user/{user_id}/accounts", tags=["Monetary Accounts"])
 def get_accounts(user_id: int):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
@@ -196,9 +254,9 @@ def get_accounts(user_id: int):
 
 @app.get("/user/{user_id}/payments/{monetary_account_id}", tags=["Payments"])
 def get_payments(user_id: int, monetary_account_id: int):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{monetary_account_id}/payment",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
@@ -224,7 +282,7 @@ def request_inquiry(
         }
     )
 ):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
 
     payload = {
         "amount_inquired": {
@@ -241,7 +299,7 @@ def request_inquiry(
     }
 
     response = requests.post(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{body.get('monetary_account_id')}/request-inquiry",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{body.get('monetary_account_id')}/request-inquiry",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
@@ -276,7 +334,7 @@ def create_draft_payment(
         }
     )
 ):
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
 
     payload = {
         "status": body.get("status", "PENDING"),
@@ -301,7 +359,7 @@ def create_draft_payment(
     }
 
     response = requests.post(
-        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{body.get('monetary_account_id')}/draft-payment",
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{body.get('monetary_account_id')}/draft-payment",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
@@ -590,7 +648,7 @@ def get_notification_filters(user_id: int):
     """
     Retrieve all URL notification filters for a user.
     """
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     headers = {
         "X-Bunq-Client-Authentication": session_token,
         "X-Bunq-Language": "en_US",
@@ -651,7 +709,7 @@ def set_notification_filter(
         ]
     }
     """
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     headers = {
         "X-Bunq-Client-Authentication": session_token,
         "X-Bunq-Language": "en_US",
@@ -677,7 +735,7 @@ def get_notification_filters(user_id: int):
     """
     Retrieve all URL notification failures for a user.
     """
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     headers = {
         "X-Bunq-Client-Authentication": session_token,
         "X-Bunq-Language": "en_US",
@@ -734,7 +792,7 @@ def set_notification_filter(
         "notification_filters": []
     }
     """
-    session_token, end_user_id = extract_session_info(user_id)
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     headers = {
         "X-Bunq-Client-Authentication": session_token,
         "X-Bunq-Language": "en_US",
@@ -752,4 +810,72 @@ def set_notification_filter(
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.json())
 
+    return response.json()
+
+
+# GET all payment batches for a monetary account
+@app.get("/user/{user_id}/monetary-account/{monetary_account_id}/payment-batch", tags=["Batch Payments"])
+def get_payment_batches(user_id: int, monetary_account_id: int):
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment-batch",
+        headers={
+            "User-Agent": "bunq-api-client/1.0",
+            "X-Bunq-Client-Authentication": session_token,
+            "Cache-Control": "no-cache",
+            "Accept": "application/json"
+        }
+    )
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+    return response.json()
+
+# POST create a payment batch
+@app.post("/user/{user_id}/monetary-account/{monetary_account_id}/payment-batch", tags=["Batch Payments"])
+def create_payment_batch(user_id: int, monetary_account_id: int, body: dict = Body(
+    example={
+        "payments": [
+            {
+                "amount": {"value": "10.00", "currency": "EUR"},
+                "description": "Invoice #1",
+                "counterparty_alias": {"type": "IBAN", "value": "NL52BUNQ2090374640", "name": "Alice"}
+            }
+        ]
+    }
+)):
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    client_request_id = str(uuid.uuid4())
+    response = requests.post(
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment-batch",
+        headers={
+            "User-Agent": "bunq-api-client/1.0",
+            "X-Bunq-Client-Authentication": session_token,
+            "X-Bunq-Client-Request-Id": client_request_id,
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/json"
+        },
+        data=json.dumps(body)
+    )
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+    return response.json()
+
+# PUT revoke a payment batch (set to REVOKED)
+@app.put("/user/{user_id}/monetary-account/{monetary_account_id}/payment-batch/{item_id}", tags=["Batch Payments"])
+def revoke_payment_batch(user_id: int, monetary_account_id: int, item_id: int, body: dict = Body(...)):
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    client_request_id = str(uuid.uuid4())
+    response = requests.put(
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment-batch/{item_id}",
+        headers={
+            "User-Agent": "bunq-api-client/1.0",
+            "X-Bunq-Client-Authentication": session_token,
+            "X-Bunq-Client-Request-Id": client_request_id,
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/json"
+        },
+        data=json.dumps(body)
+    )
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
     return response.json()

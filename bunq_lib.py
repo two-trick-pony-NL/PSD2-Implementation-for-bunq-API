@@ -3,6 +3,7 @@ import requests
 from signing import generate_rsa_key_pair, sign_data, verify_response
 import uuid
 from datetime import datetime, timedelta
+from utils import cprint
 
 
 def format_expiration(created_str, timeout_seconds):
@@ -47,6 +48,9 @@ def print_bunq_response_session_data(data):
     print("="*60 + "\n")
     
 def print_user_api_key_response(data):
+    if "Response" not in data or not data["Response"]:
+        cprint("❌ Error: No Response to parse", color="red", style="bright")
+        return
     # Flatten response items
     resp_dict = {list(item.keys())[0]: list(item.values())[0] for item in data['Response']}
 
@@ -56,7 +60,8 @@ def print_user_api_key_response(data):
     granted_user = api_key.get('granted_by_user', {}).get('UserPerson', {})
 
     print("\n" + "="*70)
-    print("Oauth Token Used in API call".center(70))
+    cprint(f"{"Oauth Token Used in API call".center(70)}", color="yellow", style="bright")
+
     print("="*70)
 
     # Token info
@@ -65,9 +70,10 @@ def print_user_api_key_response(data):
     print(f"{'Token Updated:':30} {token.get('updated')}")
 
     # API Key info
-    print("\nUserApiKey Info".center(70))
+    cprint(f"{"\nUserApiKey Info".center(70)}", color="yellow", style="bright")
+
     print("-"*70)
-    print(f"{'API Key ID:':30} {api_key.get('id')}")
+    cprint(f"{'UserApiKey ID:':30} {api_key.get('id')}", color="cyan", style="bright")
     print(f"{'Created:':30} {api_key.get('created')}")
     print(f"{'Updated:':30} {api_key.get('updated')}")
 
@@ -75,14 +81,12 @@ def print_user_api_key_response(data):
     def print_user(title, user, created_str):
         if not user:
             return
-        print(f"\n{title}".center(70))
+        cprint(f"\n{title}".center(70), color="yellow", style="bright")
+
         print("-"*70)
-        print(f"{'User ID:':30} {user.get('id')}")
+        cprint(f"{'User ID:':30} {user.get('id')}", color="cyan", style="bright")
+
         print(f"{'Display Name:':30} {user.get('display_name')}")
-        print(f"{'Public Nickname:':30} {user.get('public_nick_name')}")
-        avatar = user.get('avatar', {})
-        if avatar.get('image'):
-            print(f"{'Avatar URL:':30} {avatar['image'][0]['urls'][0]['url']}")
         timeout = user.get('session_timeout')
         print(f"{'Session Expires At:':30} {format_expiration(created_str, timeout)}")
         print(f"{'Session Duration:':30} {format_duration(timeout)}")

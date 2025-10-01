@@ -11,58 +11,9 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 import logging
-
+from utils import log_request
 
 load_dotenv()
-
-
-# ==========================
-# Configuration so the requests library logs all requests (for debugging)
-# ==========================
-_orig_request = requests.Session.request
-
-def log_request(self, method, url, *args, **kwargs):
-    response = _orig_request(self, method, url, *args, **kwargs)
-
-    banner = "=" * 70
-    print(f"\n{banner}")
-    print(f"{method.upper()} request to:")
-    print(f"{url}")
-    print(f"{banner}")
-
-    # Request Headers
-    headers = kwargs.get('headers') or {}
-    if headers:
-        print("Request Headers:")
-        for k, v in headers.items():
-            print(f"  {k:30}: {v}")
-
-    # Response details
-    print(f"Response Status Code:         {response.status_code}")
-
-    # Bunq Response ID
-    response_id = response.headers.get('x-bunq-client-response-id', 'N/A')
-    print(f"Bunq Response ID:             {response_id}")
-
-    # Payload / JSON
-    data = kwargs.get('data') or kwargs.get('json')
-    if data:
-        print(f"Payload/Data:                 {data}")
-
-    # If not successful, dump response body
-    if not (200 <= response.status_code < 300):
-        error_banner = "-" * 70
-        print(f"\n{error_banner}")
-        print("Response Body:")
-        try:
-            print(response.json())
-        except Exception:
-            print(response.text)
-        print(f"{error_banner}")
-            
-    spacing = "\n" * 10 
-    print(spacing)
-    return response
 
 
 # Patch the Session.request method globally
@@ -76,7 +27,7 @@ requests.Session.request = log_request
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "7caf098cb7214cab25184fe13f19e485a12cf10b8eb2adbecf75d250e490e822"
+YOUR_API_KEY = "763a81e024902f77a0eabd64e5fe17330fe7d42a179c33c5a44e13a9e66c1d0e"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -494,8 +445,8 @@ def create_payment_service_provider_issuer_transaction(
         default={
             "counterparty_alias": {
                 "type": "IBAN",
-                "value": "NL52BUNQ2090374640",
-                "name": "peter van doorn"
+                "value": "NL14RABO0169202917",
+                "name": "Test Merchant"
             },
             "amount": {
                 "value": "10.00",
@@ -931,3 +882,43 @@ def set_notification_filter(
     return response.json()
 
 
+@app.get("/user/{user_id}/monetary-account/{account_id}/bunqme-tab/", tags=["bunqme"])
+def get_bunqme_tabs(user_id: int, account_id: int):
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{account_id}/bunqme-tab",
+        headers={
+            "User-Agent": "bunq-python/1.0",
+            "X-Bunq-Client-Authentication": session_token,
+            "Accept": "application/json",
+        },
+    )
+    return response.json()
+
+
+@app.post("/user/{user_id}/monetary-account/{account_id}/bunqme-tab/", tags=["bunqme"])
+def create_bunqme_tab(
+    user_id: int,
+    account_id: int,
+    tab_entry: dict = Body(..., example={
+        "bunqme_tab_entry": {
+            "amount_inquired": {"value": "10.00", "currency": "EUR"},
+            "description": "Lunch",
+            "redirect_url": "https://example.com/return"
+        },
+        "status": "ACTIVE",
+        "event_id": 1
+    })
+):
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    response = requests.post(
+        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{account_id}/bunqme-tab",
+        json=tab_entry,
+        headers={
+            "User-Agent": "bunq-python/1.0",
+            "X-Bunq-Client-Authentication": session_token,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    return response.json()

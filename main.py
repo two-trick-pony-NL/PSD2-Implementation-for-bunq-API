@@ -228,9 +228,36 @@ def get_payments(user_id: int, monetary_account_id: int):
     )
     return response.json()
 
+@app.get("/user/{user_id}/monetary-account/{monetary_account_id}/draft-payment/{payment_id}/", tags=["Payments"])
+def get_draft_payment(user_id: int, monetary_account_id: int, payment_id: int):
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/draft-payment/{payment_id}",
+        headers={
+            "User-Agent": "text",
+            "X-Bunq-Client-Authentication": session_token,
+            "Accept": "*/*"},
+    )
+    return response.json()
+
+@app.get("/user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/", tags=["Payments"])
+def get_payment(user_id: int, monetary_account_id: int, payment_id: int):
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    response = requests.get(
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment/{payment_id}",
+        headers={
+            "User-Agent": "text",
+            "X-Bunq-Client-Authentication": session_token,
+            "Accept": "*/*"},
+    )
+    return response.json()
+
 # ==========================
 # Step 4: Create Payments
 # ==========================
+
+
+
 @app.post("/user/{user_id}/request-inquiry", tags=["Requests"])
 def request_inquiry(
     user_id: int,

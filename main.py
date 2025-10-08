@@ -27,7 +27,7 @@ requests.Session.request = log_request
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "763a81e024902f77a0eabd64e5fe17330fe7d42a179c33c5a44e13a9e66c1d0e"
+YOUR_API_KEY = "76a1efb4a7f8ec9162e661b12dc7293e7a1a0803a5625ee6bdd4a706f11ecd99"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"

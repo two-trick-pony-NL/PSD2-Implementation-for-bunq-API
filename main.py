@@ -1106,3 +1106,77 @@ def add_attachment_to_payment(
         json=request_body # Use the 'json' parameter for automatic JSON encoding
     )
     return response.json()
+
+
+@app.get("/user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-text", tags=["Attachments"])
+def get_note_to_payment(
+    user_id: int, 
+    monetary_account_id: int, 
+    payment_id: int,
+):
+    """
+    Get an existing attachment to a payment .
+    
+    User: 20
+    MA: 	3320038 
+    payment: 28472876
+
+    
+    """
+    
+    session_token, end_user_id, api_key_user_id = extract_session_info(user_id)
+
+
+    headers = {
+        "User-Agent": "FastAPI Bunq App",
+        "X-Bunq-Client-Authentication": session_token,
+        "Content-Type": "application/json"
+    }
+    
+    
+    
+
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-text"
+
+    response = requests.get(
+        url,
+        headers=headers,
+    )
+    return response.json()
+
+
+@app.get("/user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-attachment", tags=["Attachments"])
+def get_attachment_to_payment(
+    user_id: int, 
+    monetary_account_id: int, 
+    payment_id: int,
+):
+    """
+    Get an existing attachment to a payment .
+    
+    User: 20
+    MA: 	3320038 
+    payment: 28472876
+
+    
+    """
+    
+    session_token, end_user_id, api_key_user_id = extract_session_info(user_id)
+
+
+    headers = {
+        "User-Agent": "FastAPI Bunq App",
+        "X-Bunq-Client-Authentication": session_token,
+        "Content-Type": "application/json"
+    }
+    
+    
+    
+
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-attachment"
+
+    response = requests.get(
+        url,
+        headers=headers,
+    )
+    return response.json()

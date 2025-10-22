@@ -4,7 +4,8 @@ import json
 import requests
 from urllib.parse import urlencode
 from fastapi import FastAPI, HTTPException, Path, Body, Header
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
+from fastapi.responses import RedirectResponse, HTMLResponse, StreamingResponse
 from bunq_lib import BunqOauthClient
 from db import get_user, save_token, init_db
 import os
@@ -27,7 +28,7 @@ requests.Session.request = log_request
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "76a1efb4a7f8ec9162e661b12dc7293e7a1a0803a5625ee6bdd4a706f11ecd99"
+YOUR_API_KEY = "a8f259028e06d00e4359e7603392667f0b7a6eab8d5f605dd8b0de56f2e0e8f5"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -947,5 +948,161 @@ def create_bunqme_tab(
             "Content-Type": "application/json",
             "Accept": "application/json",
         },
+    )
+    return response.json()
+
+
+
+
+# -------------------------
+# Attachments
+# -------------------------
+# ==========================
+# New Endpoint: Upload Attachment
+# ==========================
+@app.post("/user/{user_id}/monetary-account/{monetary_account_id}/attachment", tags=["Attachments"])
+async def create_monetary_account_attachment(
+    user_id: int, 
+    monetary_account_id: int,
+    file: UploadFile = File(..., description="The file to upload as an attachment."),
+    description: str = Form(..., description="A brief description of the file.")
+):
+    """
+    Creates a new attachment and immediately links it to a specific monetary account.
+
+    This uses the POST /user/{userID}/monetary-account/{monetary-accountID}/attachment endpoint.
+        User: 20
+    MA: 	3411122
+    payment: 28393087
+    Attachment ID: 8cd97c1d-d530-42ef-8854-c69ae5902a2f
+
+    
+    """
+    try:
+        session_token, end_user_id, api_key_user_id = extract_session_info(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found or session invalid: {e}")
+
+    file_content = await file.read()
+    if not file_content:
+        raise HTTPException(status_code=400, detail="The uploaded file cannot be empty.")
+
+    headers = {
+        "User-Agent": "FastAPI Bunq App",
+        "X-Bunq-Client-Authentication": session_token,
+        "Content-Type": file.content_type,
+        "X-Bunq-Attachment-Description": description,
+    }
+
+    # 1. CRITICAL FIX: The URL is now an f-string to correctly insert the IDs.
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{api_key_user_id}/monetary-account/{monetary_account_id}/attachment"
+
+    # Make the request to the bunq API
+    response = requests.post(
+        url,
+        headers=headers,
+        data=file_content
+    )
+    
+    # 2. IMPROVEMENT: Added error handling.
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"Failed to create attachment on monetary account: {response.text}"
+        )
+
+    # Return the successful response from bunq, which contains the new attachment's ID
+    return response.json()
+
+    
+    
+@app.post("/user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-attachment", tags=["Attachments"])
+def add_attachment_to_payment(
+    user_id: int, 
+    monetary_account_id: int, 
+    payment_id: int,
+    attachment_id: int = Form(..., description="The ID of the attachment to link."),
+    description: str = Form(None, description="An optional description for the note-attachment.")
+):
+    """
+    Adds an existing attachment to a payment as a 'note-attachment'.
+    
+    The request body must contain the attachment_id of the attachment 
+    that was created via the /attachment-public endpoint.
+    
+    User: 20
+    MA: 	3320038 
+    payment: 28472876
+    Attachment ID: 6436861
+
+    
+    """
+    
+    session_token, end_user_id, api_key_user_id = extract_session_info(user_id)
+
+
+    headers = {
+        "User-Agent": "FastAPI Bunq App",
+        "X-Bunq-Client-Authentication": session_token,
+        "Content-Type": "application/json"
+    }
+    
+    
+    request_body = {
+        "attachment_id": attachment_id,
+    }
+    
+    # Add description only if provided
+    if description:
+        request_body["description"] = description
+
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-attachment"
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json=request_body # Use the 'json' parameter for automatic JSON encoding
+    )
+    return response.json()
+
+@app.post("/user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-text", tags=["Attachments"])
+def add_attachment_to_payment(
+    user_id: int, 
+    monetary_account_id: int, 
+    payment_id: int,
+    text: str = Form(None, description="A text for with this payment.")
+):
+    """
+    Adds an existing attachment to a payment as a 'note-text'.
+    
+    
+    User: 20
+    MA: 	3320038 
+    payment: 28472876
+
+    
+    """
+    
+    session_token, end_user_id, api_key_user_id = extract_session_info(user_id)
+
+
+    headers = {
+        "User-Agent": "FastAPI Bunq App",
+        "X-Bunq-Client-Authentication": session_token,
+        "Content-Type": "application/json"
+    }
+    
+    
+    request_body = {
+        "content": text,
+    }
+    
+
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-text"
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json=request_body # Use the 'json' parameter for automatic JSON encoding
     )
     return response.json()

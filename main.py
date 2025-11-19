@@ -28,7 +28,7 @@ requests.Session.request = log_request
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "a8f259028e06d00e4359e7603392667f0b7a6eab8d5f605dd8b0de56f2e0e8f5"
+YOUR_API_KEY = "b24cd4abd64fa9bd5ca9f9de8ae8f80ad8891a3a70ec963d6e89cbb239077151"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -481,7 +481,7 @@ def create_payment_service_provider_issuer_transaction(
                 "currency": "EUR"
             },
             "description": "Payment description",
-            "url_redirect": "https://yourapp.com/redirect",
+            "url_redirect": "https://google.com",
             "time_expiry": (datetime.utcnow() + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S.%f"),
             "status": "PENDING"
         }
@@ -560,6 +560,13 @@ def get_payment_service_provider_issuer_transaction(public_id: str):
         raise HTTPException(status_code=response.status_code, detail=response.json())
 
     return response.json()
+
+
+@app.get("/psd2/redirect/{public_id}", tags=["PSD2 User"])
+def redirect_to_payment_service_provider_issuer_transaction(public_id: str):
+
+    return RedirectResponse(url=f"https://psp.triage.bunq.com/?transactionId={public_id}")
+
 
 
 # ==========================

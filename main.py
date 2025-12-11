@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from fastapi import FastAPI, HTTPException, Path, Body, Header
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import RedirectResponse, HTMLResponse, StreamingResponse
+from typing import Tuple, Literal, Optional, List, Dict, Any
 from bunq_lib import BunqOauthClient
 from db import get_user, save_token, init_db
 import os
@@ -28,7 +29,7 @@ requests.Session.request = log_request
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "b24cd4abd64fa9bd5ca9f9de8ae8f80ad8891a3a70ec963d6e89cbb239077151"
+YOUR_API_KEY = "5e225670ef7f2236cfbfb0450fc0753102bd317b3e236fc717640ceeb96d760c"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -194,7 +195,7 @@ def extract_session_info(user_id: int):
 def get_user_info(user_id: int):
     session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}",
+        f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}",
         headers={
             "User-Agent": "text",
             "X-Bunq-Client-Authentication": session_token,
@@ -215,6 +216,7 @@ def get_accounts(user_id: int):
             "X-Bunq-Client-Authentication": session_token,
             "Content-Type": "application/json"},
     )
+    print(response.headers)
     return response.json()
 
 @app.get("/user/{user_id}/payments/{monetary_account_id}", tags=["Payments"])
@@ -1327,3 +1329,124 @@ def get_mastercard_action(user_id: int, monetary_account_id, item_id: int):
     
     
     
+
+# --- CRUD Endpoints for Cards ---
+
+# --- CRUD Endpoints for Cards ---
+
+# READ: List all cards for a user
+@app.get("/user/{user_id}/cards", tags=["Cards"])
+def list_cards(user_id: int):
+    """[READ] Lists all cards for a given user."""
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/card"
+
+    headers = {
+        "User-Agent": "FastAPI-Bunq-Wrapper",
+        "X-Bunq-Client-Authentication": session_token,
+    }
+
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+# READ: Get details for a specific card
+@app.get("/user/{user_id}/card/{card_id}", tags=["Cards"])
+def get_card_details(user_id: int, card_id: int):
+    """[READ] Retrieves the details of a specific card."""
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/card/{card_id}"
+
+    headers = {
+        "User-Agent": "FastAPI-Bunq-Wrapper",
+        "X-Bunq-Client-Authentication": session_token,
+    }
+
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+# CREATE: Order a new card
+@app.post("/user/{user_id}/credit-cards", tags=["Cards"], status_code=201)
+def order_new_credit_card(
+    user_id: int,
+    first_line: str = Body("", description="The first line of the card."),
+    second_line: str = Body("", description="The second line of the card.")):
+    """[CREATE] Orders a new CREDIT card. NOTE: This call requires encryption."""
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    print("Getting user info for display name...")
+    user = get_user_info(user_id)
+    user_display_name = user["Response"][0]["UserPerson"]["display_name"]
+    print(f"User display name: {user_display_name}")
+        
+    # The endpoint is specifically /card-credit
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/card-credit"
+
+    # --- Construct the payload from function arguments ---
+    payload = {
+        "first_line": first_line,
+        "second_line": second_line,
+        "name_on_card": user_display_name,
+        "type": "MASTERCARD",
+        "product_type": "MASTERCARD_TRAVEL",
+        "order_status": "VIRTUAL_DELIVERY"
+    }
+
+    # --- START ENCRYPTION ZONE ---
+    headers = {
+        "User-Agent": "FastAPI-Bunq-Wrapper",
+        "X-Bunq-Client-Authentication": session_token,
+        "Content-Type": "application/json", # Simplified for demonstration
+    }
+    
+    print("Sending CREDIT card payload:", payload)
+    response = requests.post(url, json=payload, headers=headers)
+    return response.json()
+
+
+@app.put("/user/{user_id}/card/{card_id}", tags=["Cards"])
+def update_card(
+    user_id: int,
+    card_id: int,
+    # All possible fields are defined as optional Body parameters
+    pin_code: str,
+    card_limit_in_eur: str,
+    card_limit_atm_in_eur: str,
+    ) -> Dict[str, Any]:
+    """
+    [UPDATE] Updates a card with any combination of optional fields.
+    If a field is not provided in the request body, it is ignored.
+    NOTE: This call requires encryption.
+    """
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/card/{card_id}"
+
+    # --- Dynamically construct the payload from any provided arguments ---
+    payload = {
+    "pin_code": pin_code,
+    "card_limit": {
+        "value": card_limit_in_eur,
+        "currency": "EUR"
+    },
+    "card_limit_atm": {
+        "value": card_limit_atm_in_eur,
+        "currency": "EUR"
+    }
+    }
+
+    # --- START ENCRYPTION ZONE ---
+    headers = {
+        "User-Agent": "FastAPI-Bunq-Wrapper",
+        "X-Bunq-Client-Authentication": session_token,
+        "Content-Type": "application/json", # Simplified for demonstration
+    }
+
+    print("Sending final flexible PUT payload:", payload)
+    response = requests.put(url, json=payload, headers=headers)
+    # --- END ENCRYPTION ZONE ---
+
+    if response.status_code >= 400:
+        print("Error from bunq:", response.json())
+
+    response.raise_for_status()
+    return response.json()

@@ -29,7 +29,7 @@ requests.Session.request = log_request
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "5e225670ef7f2236cfbfb0450fc0753102bd317b3e236fc717640ceeb96d760c"
+YOUR_API_KEY = "74b82bff5801a911f1a45af619dfc65c0d3dc4897e6c2f8a19eb697a10302d79"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -216,7 +216,7 @@ def get_accounts(user_id: int):
             "X-Bunq-Client-Authentication": session_token,
             "Content-Type": "application/json"},
     )
-    print(response.headers)
+
     return response.json()
 
 @app.get("/user/{user_id}/payments/{monetary_account_id}", tags=["Payments"])
@@ -1380,16 +1380,16 @@ def order_new_credit_card(
     print(f"User display name: {user_display_name}")
         
     # The endpoint is specifically /card-credit
-    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/card-credit"
+    url = f"https://public-api.sandbox.bunq.com/v1/user/{end_user_id}/card-debit"
 
     # --- Construct the payload from function arguments ---
     payload = {
-        "first_line": first_line,
+        #"first_line": first_line,
         "second_line": second_line,
         "name_on_card": user_display_name,
         "type": "MASTERCARD",
-        "product_type": "MASTERCARD_TRAVEL",
-        "order_status": "VIRTUAL_DELIVERY"
+        "product_type": "MASTERCARD_DEBIT",
+        "order_status": "NEW_CARD_REQUEST_RECEIVED"
     }
 
     # --- START ENCRYPTION ZONE ---
@@ -1412,6 +1412,7 @@ def update_card(
     pin_code: str,
     card_limit_in_eur: str,
     card_limit_atm_in_eur: str,
+    status: str,
     ) -> Dict[str, Any]:
     """
     [UPDATE] Updates a card with any combination of optional fields.
@@ -1431,7 +1432,8 @@ def update_card(
     "card_limit_atm": {
         "value": card_limit_atm_in_eur,
         "currency": "EUR"
-    }
+    },
+    "status": status,
     }
 
     # --- START ENCRYPTION ZONE ---

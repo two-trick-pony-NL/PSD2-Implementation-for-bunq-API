@@ -4,7 +4,7 @@ from signing import generate_rsa_key_pair, sign_data, verify_response
 import uuid
 from datetime import datetime, timedelta
 from utils import cprint
-
+import time
 
 def format_expiration(created_str, timeout_seconds):
     """Return expiration datetime string based on creation time + timeout."""
@@ -108,6 +108,8 @@ class BunqOauthClient:
         self.session_token = None
         self.user_id = None
         self.base_url = base_url
+        self._session_cache = {} # Stores sessions we have right now temporarily, in memory. Keyed by user_oauth_token with value of {data: ..., expires_at: ...}
+
 
         # Try to load device token from file
         self.load_device_token()
@@ -365,7 +367,15 @@ class BunqOauthClient:
         data = response.json()
         return data.get("Response")[1].get('Token').get('token')
 
+
     def get_end_user_oauth_details(self, user_oauth_token):
+        cached = self._session_cache.get(user_oauth_token)
+
+        # ✅ Reuse session if still valid
+        if cached and time.time() < cached['expires_at']:
+            return cached['data']
+
+        # ❌ Otherwise create new session
         url = f"{self.base_url}/session-server"
         payload_dict = {"secret": user_oauth_token}
         payload_json = json.dumps(payload_dict, separators=(',', ':'))
@@ -383,7 +393,22 @@ class BunqOauthClient:
         }
 
         response = requests.post(url, headers=headers, data=payload_json)
-        print_user_api_key_response(response.json())
-        return response.json()
+        data = response.json()
+
+        print_user_api_key_response(data)
+
+        # Extract session timeout (fallback 5 min if structure changes)
+        try:
+            session_timeout = data['Response'][2]['UserApiKey']['granted_by_user']['UserPerson']['session_timeout']
+        except (KeyError, IndexError):
+            session_timeout = 300
+
+        # Store in instance cache
+        self._session_cache[user_oauth_token] = {
+            'data': data,
+            'expires_at': time.time() + session_timeout
+        }
+
+        return data
 
 

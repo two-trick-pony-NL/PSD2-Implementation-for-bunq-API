@@ -419,9 +419,6 @@ def create_payment(
             "receiver_type": "EMAIL",
             "receiver_value": "sugardaddy@bunq.com",
             "receiver_name": "Best Friend",
-            "attachment_ids": [1],
-            "merchant_reference": "Order-123",
-            "allow_bunqto": True
         }
     )
 ):

@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 import logging
 from utils import log_request
+import time
+from signing import sign_data
 
 load_dotenv()
 
@@ -29,7 +31,7 @@ requests.Session.request = log_request
 """
 Fill this in for your PSD2 installation and delete this after set up
 """
-YOUR_API_KEY = "74b82bff5801a911f1a45af619dfc65c0d3dc4897e6c2f8a19eb697a10302d79"
+YOUR_API_KEY = "ca75ecf7059a557bc9c86fa5baf0bbfe3c8dc5f0da279e1da4483139945eb797"
 
 
 REDIRECT_URI = "https://localhost:8000/callback"
@@ -222,14 +224,40 @@ def get_accounts(user_id: int):
 @app.get("/user/{user_id}/payments/{monetary_account_id}", tags=["Payments"])
 def get_payments(user_id: int, monetary_account_id: int):
     session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
-    response = requests.get(
-        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment",
-        headers={
-            "User-Agent": "text",
-            "X-Bunq-Client-Authentication": session_token,
-            "Accept": "*/*"},
-    )
-    return response.json()
+    BASE_URL = "https://public-api.sandbox.bunq.com"
+
+    headers = {
+        "User-Agent": "text",
+        "X-Bunq-Client-Authentication": session_token,
+        "Accept": "*/*",
+    }
+
+    url = f"{BASE_URL}/v1/user/{user_api_key_id}/monetary-account/{monetary_account_id}/payment"
+
+    all_payments = []
+    page = 0
+    while url:
+        print(f"Fetching page {page}")
+        page = page + 1
+        time.sleep(1)
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+
+        # bunq wraps results in a list of objects
+        payments = data.get("Response", [])
+        all_payments.extend(payments)
+
+        pagination = data.get("Pagination", {})
+        older_url = pagination.get("older_url")
+
+        # bunq returns relative URLs
+        url = f"{BASE_URL}{older_url}" if older_url else None
+
+    return {
+        "count": len(all_payments),
+        "payments": all_payments,
+    }
 
 @app.get("/user/{user_id}/monetary-account/{monetary_account_id}/draft-payment/{payment_id}/", tags=["Payments"])
 def get_draft_payment(user_id: int, monetary_account_id: int, payment_id: int):
@@ -259,50 +287,6 @@ def get_payment(user_id: int, monetary_account_id: int, payment_id: int):
 # Step 4: Create Payments
 # ==========================
 
-
-
-@app.post("/user/{user_id}/request-inquiry", tags=["Requests"])
-def request_inquiry(
-    user_id: int,
-    body: dict = Body(
-        example={
-            "amount": "100",
-            "currency": "EUR",
-            "description": "You're the best!",
-            "receiver_type": "EMAIL",
-            "receiver_value": "sugardaddy@bunq.com",
-            "receiver_name": "Sugar Daddy",
-            "monetary_account_id": "12345"
-        }
-    )
-):
-    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
-
-    payload = {
-        "amount_inquired": {
-            "value": body.get("amount", "0.00"),
-            "currency": body.get("currency", "EUR")
-        },
-        "description": body.get("description", ""),
-        "counterparty_alias": {
-            "type": body.get("receiver_type", "EMAIL"),
-            "value": body.get("receiver_value", ""),
-            "name": body.get("receiver_name", "")
-        },
-        "allow_bunqme": False
-    }
-
-    response = requests.post(
-        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{body.get('monetary_account_id')}/request-inquiry",
-        headers={
-            "User-Agent": "text",
-            "X-Bunq-Client-Authentication": session_token,
-            "Content-Type": "application/json"
-        },
-        data=json.dumps(payload)
-    )
-
-    return response.json()
 
 # -----------------------------
 # Draft payment
@@ -371,6 +355,107 @@ def create_draft_payment(
 
     return response.json()
 
+
+@app.post("/user/{user_id}/request-inquiry", tags=["Requests"])
+def request_inquiry(
+    user_id: int,
+    body: dict = Body(
+        example={
+            "amount": "100",
+            "currency": "EUR",
+            "description": "You're the best!",
+            "receiver_type": "EMAIL",
+            "receiver_value": "sugardaddy@bunq.com",
+            "receiver_name": "Sugar Daddy",
+            "monetary_account_id": "12345"
+        }
+    )
+):
+    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
+
+    payload = {
+        "amount_inquired": {
+            "value": body.get("amount", "0.00"),
+            "currency": body.get("currency", "EUR")
+        },
+        "description": body.get("description", ""),
+        "counterparty_alias": {
+            "type": body.get("receiver_type", "EMAIL"),
+            "value": body.get("receiver_value", ""),
+            "name": body.get("receiver_name", "")
+        },
+        "allow_bunqme": False
+    }
+
+    response = requests.post(
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{body.get('monetary_account_id')}/request-inquiry",
+        headers={
+            "User-Agent": "text",
+            "X-Bunq-Client-Authentication": session_token,
+            "Content-Type": "application/json"
+        },
+        data=json.dumps(payload)
+    )
+
+    return response.json()
+
+# -----------------------------
+# Immediate payment
+# -----------------------------
+@app.post(
+    "/user/{user_id}/payment",
+    tags=["Payments"],
+    summary="Create an immediate payment",
+)
+def create_payment(
+    user_id: int,
+    body: dict = Body(
+        ...,
+        example={
+            "monetary_account_id": "2083712",
+            "amount": "10.00",
+            "currency": "EUR",
+            "description": "Dinner split",
+            "receiver_type": "EMAIL",
+            "receiver_value": "sugardaddy@bunq.com",
+            "receiver_name": "Best Friend",
+            "attachment_ids": [1],
+            "merchant_reference": "Order-123",
+            "allow_bunqto": True
+        }
+    )
+):
+    session_token, _, user_api_key_id = extract_session_info(user_id)
+
+    payload = json.dumps({
+        "amount": {
+            "value": body.get("amount", "0.00"),
+            "currency": body.get("currency", "EUR")
+        },
+        "counterparty_alias": {
+            "type": body.get("receiver_type", "EMAIL"),
+            "value": body.get("receiver_value", ""),
+            "name": body.get("receiver_name", "")
+        },
+        "description": body.get("description", "")
+    })
+    signature = sign_data(payload, bunq_client.private_key_pem)
+
+    headers = {
+            "User-Agent": "text",
+            "X-Bunq-Client-Authentication": session_token,
+            "Content-Type": "application/json",
+            "X-Bunq-Client-Signature": signature
+        }
+
+
+    response = requests.post(
+        f"https://public-api.sandbox.bunq.com/v1/user/{user_api_key_id}/monetary-account/{body.get('monetary_account_id')}/payment",
+        headers=headers,
+        data=payload
+    )
+
+    return response.json()
 
 # -----------------------------
 # Draft payment batch

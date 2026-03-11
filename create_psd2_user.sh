@@ -51,8 +51,7 @@ curl -s -X POST https://public-api.sandbox.bunq.com/v1/device-server \
   -H "Content-Type: application/json" \
   -H "X-Bunq-Client-Request-Id: $(uuidgen)" \
   -H "X-Bunq-Client-Authentication: $TOKEN" \
-  --data "{\"secret\":\"$CREDENTIAL_TOKEN\", \"description\": \"My server\"}" || error_exit "Device registration failed."
-
+  --data "{\"secret\":\"$CREDENTIAL_TOKEN\", \"description\": \"My server\", \"permitted_ips\": [\"*\"]}" || error_exit "Device registration failed."
 log "Preparing session request..."
 SESSION_REQUEST_BODY="{\"secret\":\"$CREDENTIAL_TOKEN\"}"
 echo -n "$SESSION_REQUEST_BODY" > session.request

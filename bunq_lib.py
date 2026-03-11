@@ -173,6 +173,8 @@ class BunqOauthClient:
             "permitted_ips": ['*']
         })
         signed_payload_signature = sign_data(payload, self.private_key_pem)
+        print("PRINTING PAYLOADD")
+        print(payload)
 
         headers = {
             'Content-Type': 'application/json',
@@ -185,6 +187,7 @@ class BunqOauthClient:
             'X-Bunq-Client-Signature': signed_payload_signature
         }
         response = requests.post(url, headers=headers, data=payload)
+        print(response.json())
         self.device_server_id = response.text
 
     def create_session(self):

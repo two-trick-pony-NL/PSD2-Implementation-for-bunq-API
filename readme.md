@@ -109,24 +109,91 @@ Other API calls work the same way. Fetch user token, get a session make a call. 
 <img width="1365" alt="Screenshot 2025-05-26 at 12 58 52 PM" src="https://github.com/user-attachments/assets/ce19155f-9faf-4655-a0db-e21aa388d966" />
 
 
-# Implemented calls: 
-By now I added quite some endpoints to this set up Currently we have: 
-| Method | Endpoint                                                               | Used For                                                        |
-|--------|------------------------------------------------------------------------|-----------------------------------------------------------------|
-| GET    | /auth                                                                  | Start OAuth authorization flow                                  |
-| GET    | /callback                                                              | OAuth callback to exchange code for access token               |
-| GET    | /user/{user_id}/                                                       | Get basic user info                                             |
-| GET    | /user/{user_id}/accounts                                               | Get list of user’s monetary accounts                            |
-| GET    | /user/{user_id}/payments/{monetary_account_id}                        | Get payments for a monetary account                             |
-| POST   | /user/{user_id}/request-inquiry                                       | Create a payment request inquiry                                |
-| POST   | /user/{user_id}/draft-payment                                          | Create a draft payment                                          |
-| POST   | /psd2/payment-service-provider-issuer-transaction                     | Create a PSD2 payment service provider issuer transaction       |
-| GET    | /psd2/payment-service-provider-issuer-transaction/{transaction_id}    | Get details of a PSD2 payment service provider issuer transaction |
-| GET    | /psd2/payment-service-provider-issuer-transaction-public/{public_id}  | Get public info of a PSD2 payment service provider issuer transaction |
-| GET    | /credential-password-ip                                                | List all credential-password-ip objects                         |
-| GET    | /credential-password-ip/{ip_id}                                        | Get a specific credential-password-ip object                    |
-| GET    | /credential-password-ip/{credential_password_ip_id}                   | Get credential-password-ip details                              |
-| GET    | /credential-password-ip/{credential_password_ip_id}/ip                | List IP whitelist entries for a credential                      |
-| POST   | /credential-password-ip/{credential_password_ip_id}/ip                | Add a new IP to whitelist for a credential                      |
-| GET    | /credential-password-ip/{credential_password_ip_id}/ip/{item_id}      | Get details of a specific IP whitelist entry                    |
-| PUT    | /credential-password-ip/{credential_password_ip_id}/ip/{item_id}      | Update status of an IP whitelist entry (e.g., ACTIVE/INACTIVE)  |
+# Implemented calls:
+By now I added quite some endpoints to this set up Currently we have:
+
+#### OAuth
+| Method | Endpoint      | Used For                                        |
+|--------|---------------|-------------------------------------------------|
+| GET    | /auth         | Start OAuth authorization flow                  |
+| GET    | /callback     | OAuth callback to exchange code for access token |
+
+#### User & Accounts
+| Method | Endpoint                          | Used For                              |
+|--------|-----------------------------------|---------------------------------------|
+| GET    | /user/{user_id}/                  | Get basic user info                   |
+| GET    | /user/{user_id}/accounts          | Get list of user’s monetary accounts  |
+
+#### Payments
+| Method | Endpoint                                                                          | Used For                                      |
+|--------|-----------------------------------------------------------------------------------|-----------------------------------------------|
+| GET    | /user/{user_id}/payments/{monetary_account_id}                                    | Get all payments for a monetary account (paginated) |
+| GET    | /user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/     | Get a single payment                          |
+| POST   | /user/{user_id}/payment                                                           | Create an immediate payment                   |
+| GET    | /user/{user_id}/monetary-account/{monetary_account_id}/draft-payment/{payment_id}/ | Get a draft payment                         |
+| POST   | /user/{user_id}/draft-payment                                                     | Create a draft payment                        |
+| PUT    | /user/{user_id}/monetary-account/{monetary_account_id}/draft-payment/{payment_id}/ | Accept a draft payment                      |
+| POST   | /user/{user_id}/draft-payment-batch                                               | Create multiple draft payments in one call    |
+
+#### Requests
+| Method | Endpoint                          | Used For                        |
+|--------|-----------------------------------|---------------------------------|
+| POST   | /user/{user_id}/request-inquiry   | Create a payment request inquiry |
+
+#### Cards
+| Method | Endpoint                              | Used For                              |
+|--------|---------------------------------------|---------------------------------------|
+| GET    | /user/{user_id}/cards                 | List all cards for a user             |
+| GET    | /user/{user_id}/card/{card_id}        | Get details of a specific card        |
+| POST   | /user/{user_id}/credit-cards          | Order a new debit/credit card         |
+| PUT    | /user/{user_id}/card/{card_id}        | Update card settings (limit, status)  |
+
+#### bunqme Tabs
+| Method | Endpoint                                                                   | Used For                          |
+|--------|----------------------------------------------------------------------------|-----------------------------------|
+| GET    | /user/{user_id}/monetary-account/{account_id}/bunqme-tab/                 | List all bunqme tabs for an account |
+| POST   | /user/{user_id}/monetary-account/{account_id}/bunqme-tab/                 | Create a new bunqme tab           |
+
+#### Attachments & Notes
+| Method | Endpoint                                                                                              | Used For                                  |
+|--------|-------------------------------------------------------------------------------------------------------|-------------------------------------------|
+| POST   | /user/{user_id}/monetary-account/{monetary_account_id}/attachment                                    | Upload a file attachment to an account    |
+| POST   | /user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-attachment          | Link an attachment to a payment           |
+| GET    | /user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-attachment          | Get attachments linked to a payment       |
+| POST   | /user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-text               | Add a text note to a payment              |
+| GET    | /user/{user_id}/monetary-account/{monetary_account_id}/payment/{payment_id}/note-text               | Get text notes for a payment              |
+
+#### Notification Filters
+| Method | Endpoint                                              | Used For                                          |
+|--------|-------------------------------------------------------|---------------------------------------------------|
+| GET    | /user/{user_id}/notification-filter-url               | List URL notification filters for a user          |
+| POST   | /user/{user_id}/notification-filter-url               | Set URL notification filters for a user           |
+| PUT    | /user/{user_id}/notification-filter-url               | Update URL notification filters for a user        |
+| GET    | /user/{user_id}/notification-filter-failure           | List notification delivery failures for a user    |
+
+#### Events & Mastercard Actions
+| Method | Endpoint                                                                       | Used For                                              |
+|--------|--------------------------------------------------------------------------------|-------------------------------------------------------|
+| GET    | /user/{user_id}/event                                                          | List all events for a user                            |
+| GET    | /user/{user_id}/event/{item_id}                                                | Get a specific event                                  |
+| GET    | /user/{user_id}/additional-transaction-information-category                   | Get additional transaction information categories     |
+| GET    | /user/{user_id}/mastercard_action/                                             | List Mastercard actions for a monetary account        |
+| GET    | /user/{user_id}/mastercard_action/{item_id}                                    | Get a specific Mastercard action                      |
+
+#### PSD2 Transactions
+| Method | Endpoint                                                                      | Used For                                                          |
+|--------|-------------------------------------------------------------------------------|-------------------------------------------------------------------|
+| POST   | /psd2/payment-service-provider-issuer-transaction                            | Create a PSD2 issuer transaction                                  |
+| GET    | /psd2/payment-service-provider-issuer-transaction/{transaction_id}           | Get details of a PSD2 issuer transaction                          |
+| GET    | /psd2/payment-service-provider-issuer-transaction-public/{public_id}         | Get public info of a PSD2 issuer transaction                      |
+| GET    | /psd2/redirect/{public_id}                                                    | Redirect user to bunq PSP payment page                            |
+
+#### IP Whitelist
+| Method | Endpoint                                                                  | Used For                                           |
+|--------|---------------------------------------------------------------------------|----------------------------------------------------|
+| GET    | /credential-password-ip                                                   | List all credential-password-ip objects            |
+| GET    | /credential-password-ip/{ip_id}                                           | Get a specific credential-password-ip object       |
+| GET    | /credential-password-ip/{credential_password_ip_id}/ip                   | List IP whitelist entries for a credential         |
+| POST   | /credential-password-ip/{credential_password_ip_id}/ip                   | Add a new IP to whitelist for a credential         |
+| GET    | /credential-password-ip/{credential_password_ip_id}/ip/{item_id}         | Get details of a specific IP whitelist entry       |
+| PUT    | /credential-password-ip/{credential_password_ip_id}/ip/{item_id}         | Update status of an IP whitelist entry             |

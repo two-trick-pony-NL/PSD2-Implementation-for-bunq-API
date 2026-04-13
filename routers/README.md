@@ -15,12 +15,15 @@ Handles the OAuth2 authorization flow with bunq.
 ---
 
 ## accounts.py
-User profile and monetary account lookups.
+User profile and monetary account management.
 
-| Method | Endpoint                  | Description                          |
-|--------|---------------------------|--------------------------------------|
-| GET    | /user/{user_id}/          | Get the bunq user profile            |
-| GET    | /user/{user_id}/accounts  | List all monetary accounts for a user |
+| Method | Endpoint                                                                 | Description                                                                 |
+|--------|--------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| GET    | /user/{user_id}/                                                         | Get the bunq user profile                                                   |
+| GET    | /user/{user_id}/accounts                                                 | List all monetary accounts for a user                                       |
+| GET    | /user/{user_id}/monetary-account/{monetary_account_id}                  | Get a single monetary account                                               |
+| POST   | /user/{user_id}/monetary-account-bank                                    | Create a new monetary account (requires `currency` and `description`)       |
+| PUT    | /user/{user_id}/monetary-account-bank/{monetary_account_id}             | Update account settings; set `status: "CANCELLED"` to deactivate the account |
 
 ---
 
@@ -36,9 +39,20 @@ Everything related to payments and payment requests.
 | POST   | /user/{user_id}/draft-payment                                                       | Create a draft payment                                   |
 | PUT    | /user/{user_id}/monetary-account/{monetary_account_id}/draft-payment/{payment_id}/ | Accept a draft payment (requires signing)                |
 | POST   | /user/{user_id}/draft-payment-batch                                                 | Create multiple draft payments in a single call          |
-| POST   | /user/{user_id}/request-inquiry                                                     | Send a payment request to another bunq user              |
 
 > Note: `POST /payment` and `PUT /draft-payment` include an `X-Bunq-Client-Signature` header generated from the private key.
+
+---
+
+## requests.py
+Full CRUD for request inquiries (requesting money from another user).
+
+| Method | Endpoint                                                                                                   | Description                                               |
+|--------|------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
+| GET    | /user/{user_id}/monetary-account/{monetary_account_id}/request-inquiry                                    | List all request inquiries for a monetary account         |
+| GET    | /user/{user_id}/monetary-account/{monetary_account_id}/request-inquiry/{request_inquiry_id}               | Get a single request inquiry                              |
+| POST   | /user/{user_id}/monetary-account/{monetary_account_id}/request-inquiry                                    | Create a request inquiry (send a payment request)         |
+| PUT    | /user/{user_id}/monetary-account/{monetary_account_id}/request-inquiry/{request_inquiry_id}               | Revoke a pending request inquiry (sets `status: REVOKED`) |
 
 ---
 

@@ -6,7 +6,7 @@ from db import get_user
 
 load_dotenv()
 
-YOUR_API_KEY = "ff9423a3bcd1e81fe6e89723aee0f8535c1a4034655613d099ed02c42413a9ef"
+YOUR_API_KEY = "43389182a0dc25480c4ce0feb4045166194d6bbcc423175ccb8247ca601df186"
 
 REDIRECT_URI = "https://localhost:8000/callback"
 BUNQ_AUTH_URL = "https://oauth.sandbox.bunq.com/auth"

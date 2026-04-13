@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from db import init_db
 from utils import log_request
 from dependencies import bunq_client, REDIRECT_URI, YOUR_API_KEY
-from routers import oauth, accounts, payments, psd2, ip_whitelist, notifications, bunqme, attachments, events, cards
+from routers import oauth, accounts, payments, requests as request_router, psd2, ip_whitelist, notifications, bunqme, attachments, events, cards
 
 load_dotenv()
 
@@ -28,6 +28,7 @@ refer to https://doc.bunq.com for all API documentation
 app.include_router(oauth.router)
 app.include_router(accounts.router)
 app.include_router(payments.router)
+app.include_router(request_router.router)
 app.include_router(psd2.router)
 app.include_router(ip_whitelist.router)
 app.include_router(notifications.router)

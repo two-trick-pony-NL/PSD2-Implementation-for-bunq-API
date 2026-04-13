@@ -162,49 +162,6 @@ def update_draft_payment(user_id: int, monetary_account_id: int, payment_id: int
     return response.json()
 
 
-@router.post("/user/{user_id}/request-inquiry", tags=["Requests"])
-def request_inquiry(
-    user_id: int,
-    body: dict = Body(
-        example={
-            "amount": "100",
-            "currency": "EUR",
-            "description": "You're the best!",
-            "receiver_type": "EMAIL",
-            "receiver_value": "sugardaddy@bunq.com",
-            "receiver_name": "Sugar Daddy",
-            "monetary_account_id": "12345"
-        }
-    )
-):
-    session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
-
-    payload = {
-        "amount_inquired": {
-            "value": body.get("amount", "0.00"),
-            "currency": body.get("currency", "EUR")
-        },
-        "description": body.get("description", ""),
-        "counterparty_alias": {
-            "type": body.get("receiver_type", "EMAIL"),
-            "value": body.get("receiver_value", ""),
-            "name": body.get("receiver_name", "")
-        },
-        "allow_bunqme": False
-    }
-
-    response = requests.post(
-        f"{BASE_URL}/v1/user/{user_api_key_id}/monetary-account/{body.get('monetary_account_id')}/request-inquiry",
-        headers={
-            "User-Agent": "text",
-            "X-Bunq-Client-Authentication": session_token,
-            "Content-Type": "application/json"
-        },
-        data=json.dumps(payload)
-    )
-    return response.json()
-
-
 @router.post(
     "/user/{user_id}/payment",
     tags=["Payments"],

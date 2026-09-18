@@ -53,11 +53,11 @@ def create_account(
     user_id: int,
     body: dict = Body(
         ...,
-        example={
+        openapi_examples={"default": {"value": {
             "currency": "EUR",
             "description": "My savings account",
             "daily_limit": {"value": "1000.00", "currency": "EUR"},
-        },
+        }}},
     ),
 ):
     session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
@@ -85,14 +85,14 @@ def update_account(
     monetary_account_id: int,
     body: dict = Body(
         ...,
-        example={
+        openapi_examples={"default": {"value": {
             "description": "Updated account name",
             "daily_limit": {"value": "500.00", "currency": "EUR"},
             "status": "ACTIVE",
             "sub_status": "NONE",
             "reason": "OTHER",
             "reason_description": "No longer needed",
-        },
+        }}},
     ),
 ):
     session_token, end_user_id, user_api_key_id = extract_session_info(user_id)

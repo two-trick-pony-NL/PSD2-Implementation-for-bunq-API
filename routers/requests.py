@@ -50,7 +50,7 @@ def create_request_inquiry(
     monetary_account_id: int,
     body: dict = Body(
         ...,
-        example={
+        openapi_examples={"default": {"value": {
             "amount": "100.00",
             "currency": "EUR",
             "description": "You owe me!",
@@ -58,7 +58,7 @@ def create_request_inquiry(
             "receiver_value": "sugardaddy@bunq.com",
             "receiver_name": "Sugar Daddy",
             "allow_bunqme": False,
-        },
+        }}},
     ),
 ):
     session_token, end_user_id, user_api_key_id = extract_session_info(user_id)

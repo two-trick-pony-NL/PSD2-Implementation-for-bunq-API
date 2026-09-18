@@ -23,7 +23,7 @@ def get_bunqme_tabs(user_id: int, account_id: int):
 def create_bunqme_tab(
     user_id: int,
     account_id: int,
-    tab_entry: dict = Body(..., example={
+    tab_entry: dict = Body(..., openapi_examples={"default": {"value": {
         "bunqme_tab_entry": {
             "amount_inquired": {"value": "10.00", "currency": "EUR"},
             "description": "Lunch",
@@ -31,7 +31,7 @@ def create_bunqme_tab(
         },
         "status": "ACTIVE",
         "event_id": 1
-    })
+    }}})
 ):
     session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     response = requests.post(

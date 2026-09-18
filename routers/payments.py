@@ -81,7 +81,7 @@ def create_draft_payment(
     user_id: int,
     body: dict = Body(
         ...,
-        example={
+        openapi_examples={"default": {"value": {
             "monetary_account_id": "2083712",
             "status": "PENDING",
             "amount": "10.00",
@@ -92,7 +92,7 @@ def create_draft_payment(
             "receiver_name": "Best Friend",
             "previous_updated_timestamp": "2024-05-01 12:00:00.000",
             "number_of_required_accepts": 1
-        }
+        }}}
     )
 ):
     session_token, _, user_api_key_id = extract_session_info(user_id)
@@ -171,7 +171,7 @@ def create_payment(
     user_id: int,
     body: dict = Body(
         ...,
-        example={
+        openapi_examples={"default": {"value": {
             "monetary_account_id": "2083712",
             "amount": "10.00",
             "currency": "EUR",
@@ -179,7 +179,7 @@ def create_payment(
             "receiver_type": "EMAIL",
             "receiver_value": "sugardaddy@bunq.com",
             "receiver_name": "Best Friend",
-        }
+        }}}
     )
 ):
     session_token, _, user_api_key_id = extract_session_info(user_id)
@@ -222,7 +222,7 @@ def create_draft_payment_batch(
     user_id: int,
     body: list[dict] = Body(
         ...,
-        example=[
+        openapi_examples={"default": {"value": [
             {
                 "monetary_account_id": "2083712",
                 "status": "PENDING",
@@ -259,7 +259,7 @@ def create_draft_payment_batch(
                 "previous_updated_timestamp": "2024-05-01 12:00:00.000",
                 "number_of_required_accepts": 1
             }
-        ]
+        ]}}
     )
 ):
     session_token, _, user_api_key_id = extract_session_info(user_id)

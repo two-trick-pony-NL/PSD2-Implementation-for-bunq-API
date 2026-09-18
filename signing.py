@@ -4,7 +4,6 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 import base64
-import hashlib
 
 
 # Function to generate RSA key pair
@@ -84,10 +83,6 @@ def sign_data(data, private_key_pem):
     # Ensure the data is encoded in UTF-8 exactly as it will be sent
     encoded_data = data.encode('utf-8')
 
-    # Debug: Print exact bytes being signed
-    #print("\n[DEBUG] Signing Data Bytes:", encoded_data)
-    #print("[DEBUG] SHA256 Hash of Data:", hashlib.sha256(encoded_data).hexdigest())
-
     # Generate signature using SHA256 and PKCS#1 v1.5 padding as required by Bunq
     signature = private_key.sign(
         encoded_data,
@@ -97,9 +92,6 @@ def sign_data(data, private_key_pem):
 
     # Encode in Base64 (as required by Bunq API)
     encoded_signature = base64.b64encode(signature).decode('utf-8')
-
-    # Debug: Print signature
-    #print("[DEBUG] Base64 Encoded Signature:", encoded_signature)
 
     return encoded_signature
 

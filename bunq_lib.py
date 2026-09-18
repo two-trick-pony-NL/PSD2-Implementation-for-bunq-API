@@ -132,8 +132,7 @@ class BunqOauthClient:
 
     def create_installation(self):
         """
-        https://doc.bunq.com/tutorials/your-first-payment/creating-the-api-context0oµ∆≤≥ydtr
-        :return:
+        https://doc.bunq.com/tutorials/your-first-payment/creating-the-api-context
         """
         if self.device_token is not None:
             print("bunq - Device token already created.")
@@ -174,8 +173,6 @@ class BunqOauthClient:
             "permitted_ips": ['*']
         })
         signed_payload_signature = sign_data(payload, self.private_key_pem)
-        print("PRINTING PAYLOADD")
-        print(payload)
 
         headers = {
             'Content-Type': 'application/json',

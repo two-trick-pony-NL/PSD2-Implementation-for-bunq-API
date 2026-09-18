@@ -107,6 +107,7 @@ class BunqOauthClient:
         self.device_server_id = None
         self.session_token = None
         self.user_id = None
+        self.oauth_client_db_id = None
         self.base_url = base_url
         self._session_cache = {} # Stores sessions we have right now temporarily, in memory. Keyed by user_oauth_token with value of {data: ..., expires_at: ...}
 
@@ -285,6 +286,7 @@ class BunqOauthClient:
             client_id = oauth['client_id']
             secret = oauth['secret']
             database_id = oauth['id']
+            self.oauth_client_db_id = database_id
 
             print(f"[DEBUG] OAuth Client ID: {client_id}")
             print(f"[DEBUG] OAuth Secret: {secret}")
@@ -321,6 +323,36 @@ class BunqOauthClient:
         print(f"[DEBUG] Oauth Client Secret: {secret}")
         print(f"[DEBUG] Oauth Client: {response.text}")
         return client_id, secret
+
+    def list_oauth_clients(self):
+        url = f"{self.base_url}/user/{self.user_id}/oauth-client"
+        headers = {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'User-Agent': self.service_name,
+            'X-Bunq-Language': 'en_US',
+            'X-Bunq-Region': 'nl_NL',
+            'X-Bunq-Geolocation': '0 0 0 0 000',
+            'X-Bunq-Client-Authentication': self.session_token,
+            'X-Bunq-Client-Request-Id': str(uuid.uuid4())
+        }
+        response = requests.get(url, headers=headers)
+        return json.loads(response.text)
+
+    def list_oauth_callback_urls(self, client_id: str):
+        url = f"{self.base_url}/user/{self.user_id}/oauth-client/{client_id}/callback-url"
+        headers = {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'User-Agent': self.service_name,
+            'X-Bunq-Language': 'en_US',
+            'X-Bunq-Region': 'nl_NL',
+            'X-Bunq-Geolocation': '0 0 0 0 000',
+            'X-Bunq-Client-Authentication': self.session_token,
+            'X-Bunq-Client-Request-Id': str(uuid.uuid4())
+        }
+        response = requests.get(url, headers=headers)
+        return json.loads(response.text)
 
     def add_oauth_callback_url(self, client_id: str, callback_url: str):
         url = f"{self.base_url}/user/{self.user_id}/oauth-client/{client_id}/callback-url"

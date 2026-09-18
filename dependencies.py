@@ -6,7 +6,7 @@ from db import get_user
 
 load_dotenv()
 
-YOUR_API_KEY = "43389182a0dc25480c4ce0feb4045166194d6bbcc423175ccb8247ca601df186"
+YOUR_API_KEY = "0078c2cf129fac7f114eac83e4405e4c445101ddc3d0ad68c66e948380439698"
 
 REDIRECT_URI = "https://localhost:8000/callback"
 BUNQ_AUTH_URL = "https://oauth.sandbox.bunq.com/auth"
@@ -25,6 +25,8 @@ def extract_session_info(user_id: int):
     user = get_user(user_id)
     oauth_user = bunq_client.get_end_user_oauth_details(user.access_token)
     session_token = oauth_user["Response"][1]["Token"]["token"]
-    end_user_id = oauth_user["Response"][2]["UserApiKey"]["granted_by_user"]["UserPerson"]["id"]
+    granted_by_user = oauth_user["Response"][2]["UserApiKey"]["granted_by_user"]
+    user_type = "UserPerson" if "UserPerson" in granted_by_user else "UserCompany"
+    end_user_id = granted_by_user[user_type]["id"]
     user_api_key = oauth_user["Response"][2]["UserApiKey"]["id"]
     return session_token, end_user_id, user_api_key

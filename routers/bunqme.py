@@ -9,7 +9,7 @@ router = APIRouter()
 def get_bunqme_tabs(user_id: int, account_id: int):
     session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     response = requests.get(
-        f"{BASE_URL}/v1/user/{end_user_id}/monetary-account/{account_id}/bunqme-tab",
+        f"{BASE_URL}/v1/user/{user_api_key_id}/monetary-account/{account_id}/bunqme-tab",
         headers={
             "User-Agent": "bunq-python/1.0",
             "X-Bunq-Client-Authentication": session_token,
@@ -35,7 +35,7 @@ def create_bunqme_tab(
 ):
     session_token, end_user_id, user_api_key_id = extract_session_info(user_id)
     response = requests.post(
-        f"{BASE_URL}/v1/user/{end_user_id}/monetary-account/{account_id}/bunqme-tab",
+        f"{BASE_URL}/v1/user/{user_api_key_id}/monetary-account/{account_id}/bunqme-tab",
         json=tab_entry,
         headers={
             "User-Agent": "bunq-python/1.0",

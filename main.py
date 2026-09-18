@@ -73,6 +73,7 @@ def setup_one_time():
 
     print("-> Step 5: Registering Callback URL")
     bunq_client.add_oauth_callback_url(client_id=oauth_database_id, callback_url=REDIRECT_URI)
+
     time.sleep(3)
 
     print("-> Step 6: Adding Credentials to .env file")
@@ -80,6 +81,7 @@ def setup_one_time():
     values = {
         "OAUTH_CLIENT_ID": oauth_client_id,
         "OAUTH_CLIENT_SECRET": oauth_secret,
+        "OAUTH_CLIENT_DB_ID": oauth_database_id,
         "USER_API_KEY": YOUR_API_KEY,
     }
     with open(filepath, "w") as f:

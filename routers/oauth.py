@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from db import save_token
-from dependencies import BUNQ_AUTH_URL, BUNQ_TOKEN_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, REDIRECT_URI
+from dependencies import BUNQ_AUTH_URL, BUNQ_TOKEN_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, REDIRECT_URI, bunq_client
 
 router = APIRouter()
 
@@ -21,7 +21,8 @@ def authorize():
         "response_type": "code",
         "client_id": OAUTH_CLIENT_ID,
         "redirect_uri": REDIRECT_URI,
-        "state": state
+        "state": state,
+        "scope": "read_monetary_accounts make_payments request_payments bunqme"
     })
 
     return RedirectResponse(f"{BUNQ_AUTH_URL}?{query_params}")
@@ -48,3 +49,28 @@ async def callback(code: str = None, state: str = None):
     token = token_data["access_token"]
     user = save_token(token)
     return {"message": "OAuth success", "new_user_id": user.id}
+
+
+@router.get("/oauth-clients", tags=["oauth"])
+def list_oauth_clients():
+    try:
+        return bunq_client.list_oauth_clients()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/oauth-client/{client_db_id}/callback-url", tags=["oauth"])
+def list_callback_urls(client_db_id: str):
+    try:
+        return bunq_client.list_oauth_callback_urls(client_id=client_db_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/oauth-client/{client_db_id}/callback-url", tags=["oauth"])
+def add_callback_url(client_db_id: str, callback_url: str):
+    try:
+        result = bunq_client.add_oauth_callback_url(client_id=client_db_id, callback_url=callback_url)
+        return {"message": "Callback URL added", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
